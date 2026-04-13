@@ -50,10 +50,10 @@
 
     <main id="app" class="w-full max-w-md">
         
-        <!-- Vista 1: Registro de Lead -->
+        <!-- Vista 1: Registro -->
         <section id="view-register" class="bg-zinc-900/50 p-8 rounded-[2rem] border border-zinc-800 shadow-2xl backdrop-blur-md">
             <h2 class="text-2xl font-bold mb-2">Bienvenido al Club 🍕</h2>
-            <p class="text-zinc-400 mb-8 text-sm leading-relaxed">Únete hoy y recibe tu primer sello de cortesía. Acumula 8 y la próxima pizza va por nuestra cuenta.</p>
+            <p class="text-zinc-400 mb-8 text-sm leading-relaxed text-balance">Únete hoy y recibe tu primer sello de cortesía inmediatamente.</p>
             
             <div class="space-y-5">
                 <div>
@@ -68,11 +68,10 @@
                     OBTENER MI PRIMER SELLO
                 </button>
             </div>
-            <p class="text-[9px] text-zinc-600 mt-6 text-center leading-tight">Al registrarte aceptas recibir promociones exclusivas vía WhatsApp. Cumplimos con la Ley de Protección de Datos.</p>
         </section>
 
-        <!-- Vista 2: Dashboard Principal -->
-        <section id="view-dashboard" class="hidden space-y-6 animate-in fade-in duration-500">
+        <!-- Vista 2: Dashboard -->
+        <section id="view-dashboard" class="hidden space-y-6">
             <div class="bg-zinc-900/80 p-6 rounded-[2.5rem] border border-zinc-800 shadow-2xl relative overflow-hidden">
                 <div class="flex justify-between items-start mb-8">
                     <div>
@@ -80,17 +79,14 @@
                         <p id="user-display-name" class="font-bold text-xl text-white">---</p>
                     </div>
                     <div class="bg-orange-500/10 px-4 py-2 rounded-full border border-orange-500/20">
-                        <span class="text-orange-500 text-[10px] font-black uppercase tracking-tighter">Membresía Premium</span>
+                        <span class="text-orange-500 text-[10px] font-black uppercase tracking-tighter">Premium</span>
                     </div>
                 </div>
 
-                <!-- Grilla de Sellos -->
-                <div class="grid grid-cols-4 gap-4 mb-8" id="stamp-grid">
-                    <!-- Generado por JS -->
-                </div>
+                <div class="grid grid-cols-4 gap-4 mb-8" id="stamp-grid"></div>
 
                 <div class="bg-black/40 p-4 rounded-2xl">
-                    <p id="status-msg" class="text-xs text-zinc-300 font-medium">
+                    <p id="status-msg" class="text-xs text-zinc-300 font-medium text-center">
                         Te faltan <span id="stamps-left" class="text-orange-500 font-bold text-sm">8</span> compras para tu premio.
                     </p>
                 </div>
@@ -99,74 +95,45 @@
             <button onclick="openStaffAuth()" class="w-full flex items-center justify-center gap-3 bg-white text-black py-5 rounded-2xl font-black shadow-xl active:scale-95 transition-transform uppercase text-xs tracking-widest">
                 <span class="text-xl">🍕</span> VALIDAR CONSUMO
             </button>
-
-            <div class="text-[10px] text-zinc-500 px-6 text-center leading-relaxed italic">
-                * Válido solo en local. No acumulable con promociones externas. La pizza de regalo es de tamaño Mediano. Vigencia 2026.
-            </div>
         </section>
 
-        <!-- Vista 3: Recompensa Desbloqueada -->
-        <section id="view-reward" class="hidden bg-orange-600 p-8 rounded-[3rem] text-center shadow-[0_0_40px_rgba(234,88,12,0.4)] border-2 border-orange-400">
+        <!-- Vista 3: Recompensa -->
+        <section id="view-reward" class="hidden bg-orange-600 p-8 rounded-[3rem] text-center shadow-2xl">
             <div class="mb-6 text-6xl">🏆</div>
             <h2 class="text-5xl font-brand text-white mb-2">¡DOG MASTER!</h2>
-            <p class="text-orange-100 mb-8 font-bold text-xs uppercase tracking-widest">Has completado tu tarjeta. <br>Disfruta tu pizza gratis.</p>
-            
-            <div class="bg-black/20 backdrop-blur-md border border-white/20 text-white p-6 rounded-3xl font-black text-3xl mb-8 tracking-widest">
+            <div class="bg-black/20 text-white p-6 rounded-3xl font-black text-3xl mb-8 tracking-widest">
                 <span id="reward-code">SLICE-FREE</span>
             </div>
-            
-            <div class="space-y-4">
-                <button onclick="shareAchievement()" class="w-full bg-white text-orange-600 font-black py-5 rounded-2xl shadow-lg uppercase text-xs tracking-widest">
-                    Presumir en Instagram
-                </button>
-                <button onclick="resetCard()" class="text-orange-200 text-[10px] uppercase font-bold tracking-widest opacity-60 hover:opacity-100 transition-opacity">
-                    Marcar como Canjeado
-                </button>
-            </div>
+            <button onclick="resetCard()" class="text-orange-200 text-[10px] uppercase font-bold tracking-widest">Canjear y Reiniciar</button>
         </section>
     </main>
 
-    <!-- Modal: PIN del Staff -->
-    <div id="staff-auth-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/95 backdrop-blur-md">
-        <div class="bg-zinc-900 w-full max-w-xs p-8 rounded-[2.5rem] border border-zinc-800 text-center shadow-2xl">
-            <div class="w-16 h-16 bg-orange-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span class="text-2xl">🔐</span>
-            </div>
-            <h3 class="text-xl font-bold mb-2">Acceso Staff</h3>
-            <p class="text-xs text-zinc-500 mb-8 leading-relaxed">El encargado debe ingresar el PIN para validar el sello del cliente.</p>
-            
-            <input type="password" id="staff-pin" maxlength="4" inputmode="numeric" class="w-full bg-zinc-800 text-center text-4xl p-5 rounded-2xl tracking-[0.5em] border-none outline-none focus:ring-2 ring-orange-500 mb-8 font-black" placeholder="****">
-            
+    <!-- Modal Staff -->
+    <div id="staff-auth-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/95">
+        <div class="bg-zinc-900 w-full max-w-xs p-8 rounded-[2.5rem] border border-zinc-800 text-center">
+            <h3 class="text-xl font-bold mb-8 uppercase tracking-widest">PIN Staff</h3>
+            <input type="password" id="staff-pin" maxlength="4" inputmode="numeric" class="w-full bg-zinc-800 text-center text-4xl p-5 rounded-2xl tracking-[0.5em] outline-none focus:ring-2 ring-orange-500 mb-8" placeholder="****">
             <div class="grid grid-cols-2 gap-4">
-                <button onclick="closeStaffAuth()" class="bg-zinc-800 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest">Cerrar</button>
-                <button onclick="validateAndAddStamp()" class="bg-orange-600 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-orange-900/40">Confirmar</button>
+                <button onclick="closeStaffAuth()" class="bg-zinc-800 py-4 rounded-xl text-[10px] font-black uppercase">Cerrar</button>
+                <button onclick="validateAndAddStamp()" class="bg-orange-600 py-4 rounded-xl text-[10px] font-black uppercase">Validar</button>
             </div>
         </div>
     </div>
 
     <!-- Loader -->
     <div id="loader" class="fixed inset-0 z-[100] loading-overlay flex flex-col items-center justify-center">
-        <div class="relative">
-            <div class="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-orange-500"></div>
-            <div class="absolute inset-0 flex items-center justify-center font-brand text-orange-500">SDC</div>
-        </div>
-        <p class="mt-6 text-[10px] font-black uppercase tracking-[0.3em] text-orange-500 animate-pulse">Sincronizando con la Nube...</p>
+        <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-orange-500 mb-4"></div>
+        <p class="text-[10px] font-black uppercase tracking-[0.3em] text-orange-500">Procesando...</p>
     </div>
 
     <script>
-        // CONFIGURACIÓN CENTRALIZADA
+        // CONFIG
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhaCU_k21Dizx-KURzedFFJIecQoA-oYaHzDdFzUdEHrrB7ylpTac2twghvOufy9vG/exec";
         const TOTAL_STAMPS = 8;
-        const STAFF_PIN = "2024"; // Cambiar por tu código secreto
+        const STAFF_PIN = "2024";
 
-        let userData = {
-            name: "",
-            phone: "",
-            stamps: 0,
-            registered: false
-        };
+        let userData = { name: "", phone: "", stamps: 0, registered: false };
 
-        // UI CONTROLS
         const views = {
             register: document.getElementById('view-register'),
             dashboard: document.getElementById('view-dashboard'),
@@ -182,84 +149,71 @@
         };
 
         function renderApp() {
+            Object.keys(views).forEach(k => views[k].classList.add('hidden'));
             if (!userData.registered) {
-                showView('register');
+                views.register.classList.remove('hidden');
             } else if (userData.stamps >= TOTAL_STAMPS) {
-                showView('reward');
+                views.reward.classList.remove('hidden');
                 triggerConfetti();
             } else {
-                showView('dashboard');
+                views.dashboard.classList.remove('hidden');
                 updateDashboard();
             }
         }
 
-        function showView(key) {
-            Object.keys(views).forEach(k => views[k].classList.add('hidden'));
-            views[key].classList.remove('hidden');
-        }
-
         function updateDashboard() {
             document.getElementById('user-display-name').innerText = userData.name;
-            document.getElementById('stamps-left').innerText = TOTAL_STAMPS - userData.stamps;
-            
+            document.getElementById('stamps-left').innerText = Math.max(0, TOTAL_STAMPS - userData.stamps);
             const grid = document.getElementById('stamp-grid');
             grid.innerHTML = '';
-            
             for (let i = 0; i < TOTAL_STAMPS; i++) {
                 const slot = document.createElement('div');
-                const isActive = i < userData.stamps;
-                slot.className = `stamp-slot rounded-[1.2rem] flex items-center justify-center text-3xl ${isActive ? 'stamp-active' : ''}`;
-                slot.innerHTML = isActive ? '🍕' : `<span class="opacity-5 text-xl font-brand">SDC</span>`;
+                const active = i < userData.stamps;
+                slot.className = `stamp-slot rounded-2xl flex items-center justify-center text-3xl ${active ? 'stamp-active' : ''}`;
+                slot.innerHTML = active ? '🍕' : '<span class="opacity-10 text-xs">SDC</span>';
                 grid.appendChild(slot);
             }
         }
 
-        // LÓGICA DE NEGOCIO Y API
+        // COMUNICACIÓN ASÍNCRONA (SIN BLOQUEO)
+        async function syncWithCloud(payload) {
+            try {
+                // Enviamos sin esperar respuesta (Fire and Forget) para evitar bloqueos de CORS/Red
+                fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify(payload)
+                });
+                return true;
+            } catch (e) {
+                console.warn("Cloud Sync Fail - Data kept locally");
+                return false;
+            }
+        }
+
         async function handleRegister() {
             const name = document.getElementById('reg-name').value.trim();
             const phone = document.getElementById('reg-phone').value.trim();
 
             if (!name || !phone) {
-                alert("Por favor completa los datos para unirte al club.");
+                alert("Completa tus datos.");
                 return;
             }
 
             showLoader(true);
             
-            try {
-                // Sincronización con Google Sheets
-                const response = await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'no-cors', // Importante para evitar problemas de CORS con Apps Script
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'register',
-                        name: name,
-                        phone: phone,
-                        stamps: 1 // Primer sello gratis
-                    })
-                });
+            // Registro Optimista: Guardamos local primero
+            userData = { name, phone, stamps: 1, registered: true };
+            localStorage.setItem('sdc_v1_user', JSON.stringify(userData));
+            
+            // Intentamos sincronizar pero NO bloqueamos la UI si falla
+            syncWithCloud({ action: 'register', name, phone, stamps: 1 });
 
-                // Como usamos no-cors no podemos leer la respuesta, pero asumimos éxito si no hay error
-                userData = { name, phone, stamps: 1, registered: true };
-                localStorage.setItem('sdc_v1_user', JSON.stringify(userData));
-                renderApp();
-            } catch (e) {
-                console.error("Error de registro:", e);
-                alert("Hubo un problema de conexión. Inténtalo de nuevo.");
-            } finally {
+            // Simulamos un pequeño delay de "éxito" para feedback visual
+            setTimeout(() => {
                 showLoader(false);
-            }
-        }
-
-        function openStaffAuth() {
-            document.getElementById('staff-auth-modal').classList.remove('hidden');
-            document.getElementById('staff-pin').focus();
-        }
-
-        function closeStaffAuth() {
-            document.getElementById('staff-auth-modal').classList.add('hidden');
-            document.getElementById('staff-pin').value = '';
+                renderApp();
+            }, 800);
         }
 
         async function validateAndAddStamp() {
@@ -267,63 +221,26 @@
             if (pin === STAFF_PIN) {
                 showLoader(true);
                 
-                try {
-                    // Sincronización de sello en la nube
-                    await fetch(SCRIPT_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        body: JSON.stringify({
-                            action: 'addStamp',
-                            phone: userData.phone
-                        })
-                    });
+                userData.stamps++;
+                localStorage.setItem('sdc_v1_user', JSON.stringify(userData));
+                
+                syncWithCloud({ action: 'addStamp', phone: userData.phone });
 
-                    userData.stamps++;
-                    localStorage.setItem('sdc_v1_user', JSON.stringify(userData));
+                setTimeout(() => {
+                    showLoader(false);
                     closeStaffAuth();
                     renderApp();
-                } catch (e) {
-                    alert("Error sincronizando el sello. Verifica tu conexión.");
-                } finally {
-                    showLoader(false);
-                }
+                }, 800);
             } else {
                 alert("PIN INCORRECTO");
-                document.getElementById('staff-pin').value = '';
             }
         }
 
-        function resetCard() {
-            if(confirm("¿Confirmas el canje de la pizza gratis? La tarjeta volverá a cero.")) {
-                userData.stamps = 0;
-                localStorage.setItem('sdc_v1_user', JSON.stringify(userData));
-                renderApp();
-            }
-        }
-
-        function shareAchievement() {
-            const text = `¡Soy leyenda en Slice Dog Club! Acabo de ganar mi pizza gratis por ser cliente fiel. 🍕🔥 Compra local, apoya a los dogs.`;
-            if (navigator.share) {
-                navigator.share({ title: 'Slice Dog Club', text: text, url: 'https://slicedogclub.cl' });
-            } else {
-                alert("¡Copiado! Pégalo en tus stories.");
-            }
-        }
-
-        function triggerConfetti() {
-            const duration = 3 * 1000;
-            const end = Date.now() + duration;
-
-            (function frame() {
-                confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#A64B2A', '#ffffff'] });
-                confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#A64B2A', '#ffffff'] });
-                if (Date.now() < end) requestAnimationFrame(frame);
-            }());
-        }
-
-        function showLoader(show) {
-            document.getElementById('loader').style.display = show ? 'flex' : 'none';
-        }
+        function openStaffAuth() { document.getElementById('staff-auth-modal').classList.remove('hidden'); document.getElementById('staff-pin').focus(); }
+        function closeStaffAuth() { document.getElementById('staff-auth-modal').classList.add('hidden'); document.getElementById('staff-pin').value = ''; }
+        function showLoader(show) { document.getElementById('loader').style.display = show ? 'flex' : 'none'; }
+        function triggerConfetti() { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); }
+        function resetCard() { if(confirm("¿Reiniciar tarjeta?")) { userData.stamps = 0; localStorage.setItem('sdc_v1_user', JSON.stringify(userData)); renderApp(); } }
     </script>
 </body>
 </html>
