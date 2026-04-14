@@ -44,7 +44,6 @@
             text-transform: uppercase;
         }
 
-        /* Input Styles */
         .sd-input {
             width: 100%;
             padding: 1.25rem;
@@ -81,7 +80,11 @@
             box-shadow: 0 10px 20px -5px rgba(233, 161, 36, 0.5);
         }
         
-        .btn-primary:active { transform: scale(0.96); }
+        .btn-primary:disabled {
+            background-color: #ccc;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
 
         #error-toast {
             transform: translateY(100px);
@@ -92,14 +95,12 @@
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
 
-    <!-- Header Logo -->
     <header class="w-full max-w-md text-center py-10">
         <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="Logo Slice Dog" class="w-16 h-16 mx-auto mb-4 drop-shadow-lg">
         <h1 class="italic-black text-2xl tracking-tight text-[var(--sd-dark)]">Slice Dog Club</h1>
         <p class="text-[var(--sd-terracotta)] text-[10px] font-bold tracking-[0.3em] uppercase opacity-70">Loyalty Experience</p>
     </header>
 
-    <!-- UI Principal -->
     <main id="main-ui" class="w-full max-w-md stamp-card overflow-hidden hidden">
         <div class="p-8 text-center">
             <div class="mb-6">
@@ -110,10 +111,8 @@
                 <h2 id="status-title" class="italic-black text-2xl leading-none"></h2>
             </div>
 
-            <!-- Grid de Sellos -->
             <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-10"></div>
 
-            <!-- Botones -->
             <div id="actions-container">
                 <button id="btn-scan" onclick="openScanner()" class="btn-primary w-full py-5 text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3">
                     <i data-lucide="qr-code" class="w-5 h-5"></i> ¡Sellar Compra!
@@ -123,19 +122,8 @@
                 </button>
             </div>
         </div>
-
-        <div class="bg-orange-50/50 border-t border-orange-100 p-6 flex items-start gap-4">
-            <div class="bg-[var(--sd-mustard)] p-2.5 rounded-2xl text-white">
-                <i data-lucide="camera" class="w-4 h-4"></i>
-            </div>
-            <div>
-                <span class="text-[10px] text-[var(--sd-terracotta)] italic-black block mb-0.5">Escaneo Directo</span>
-                <p class="text-[11px] text-neutral-600 font-medium leading-tight italic">Apunta al código QR del staff para sumar puntos al instante.</p>
-            </div>
-        </div>
     </main>
 
-    <!-- Modal Registro (Ahora con WhatsApp y Email) -->
     <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
         <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center shadow-2xl">
             <div class="mb-6">
@@ -149,44 +137,29 @@
                 <input type="tel" id="reg-whatsapp" placeholder="WhatsApp (Ej: +569...)" class="sd-input">
             </div>
 
-            <button onclick="registerUser()" class="w-full py-5 bg-[var(--sd-dark)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-2">
-                Empezar Ahora <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            <button id="btn-register" onclick="registerUser()" class="w-full py-5 bg-[var(--sd-dark)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-2">
+                <span id="reg-text">Empezar Ahora</span> <i data-lucide="arrow-right" class="w-4 h-4"></i>
             </button>
-            
-            <p class="mt-6 text-[9px] text-neutral-400 font-medium leading-relaxed italic">
-                Al registrarte aceptas recibir promociones de Slice Dog por correo y WhatsApp.
-            </p>
         </div>
     </div>
 
-    <!-- Modal Escáner -->
     <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[200] flex flex-col items-center justify-center p-6 hidden">
         <div class="w-full max-w-sm bg-white rounded-[3rem] p-4 relative">
             <button onclick="closeScanner()" class="absolute -top-12 right-0 text-white flex items-center gap-2">
                 <span class="text-[10px] font-black uppercase">Cerrar</span>
                 <i data-lucide="x-circle"></i>
             </button>
-            
             <div id="reader"></div>
-            
-            <div class="py-6 text-center">
-                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-2">Validando con el Staff</p>
-                <p class="text-xs text-neutral-500 px-6 italic leading-relaxed">Escanea el código QR que te mostrará el encargado.</p>
-            </div>
-        </div>
-
-        <!-- Toast de Error -->
-        <div id="error-toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-red-600 text-white px-8 py-4 rounded-full flex items-center gap-3 shadow-2xl hidden z-[300]">
-            <i data-lucide="alert-triangle" class="w-5 h-5"></i>
-            <span class="text-[10px] font-black uppercase italic">Código inválido o caducado</span>
         </div>
     </div>
 
     <script>
         const CONFIG = {
             maxStamps: 10,
-            storageKey: "slice_dog_user_data_v4",
-            qrPrefix: "SD-"
+            storageKey: "slice_dog_user_data_v5",
+            qrPrefix: "SD-",
+            // IMPORTANTE: Asegúrate de que esta URL sea la de tu Script de Google Sheets
+            scriptURL: "https://script.google.com/macros/s/AKfycbzAqCKlto6D4ol7hoIH9oZwD3E0exPdl-GUHUlLobDrB6QbPXDnjHVy4cUz6_9IIsjt/exec"
         };
 
         let user = JSON.parse(localStorage.getItem(CONFIG.storageKey));
@@ -200,41 +173,71 @@
             return `${CONFIG.qrPrefix}${y}-${m}-${d}`;
         }
 
-        function init() {
-            if (!user) {
-                document.getElementById('register-modal').classList.remove('hidden');
-            } else {
-                renderApp();
-            }
-            lucide.createIcons();
-        }
-
-        function registerUser() {
+        async function registerUser() {
             const name = document.getElementById('reg-name').value.trim();
             const email = document.getElementById('reg-email').value.trim();
             const whatsapp = document.getElementById('reg-whatsapp').value.trim();
 
             if (!name || !email || !whatsapp) {
-                alert("Williams dice: Por favor completa todos los campos para continuar.");
+                alert("Por favor completa todos los campos.");
                 return;
             }
 
-            // Guardar datos completos del cliente
-            user = { 
-                name: name, 
-                email: email, 
-                whatsapp: whatsapp, 
-                stamps: 0 
-            };
-            
-            localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
-            location.reload();
+            const btn = document.getElementById('btn-register');
+            const btnText = document.getElementById('reg-text');
+            btn.disabled = true;
+            btnText.innerText = "Registrando...";
+
+            try {
+                // Enviar a Google Sheets (Usando POST para registro)
+                await fetch(CONFIG.scriptURL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    cache: 'no-cache',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nombre: name,
+                        email: email,
+                        whatsapp: whatsapp,
+                        sellos: 0,
+                        accion: "REGISTRO_NUEVO"
+                    })
+                });
+
+                // Guardar localmente para que el cliente vea su tarjeta
+                user = { name, email, whatsapp, stamps: 0 };
+                localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
+                location.reload();
+
+            } catch (e) {
+                console.error(e);
+                alert("Error al conectar con la base de datos.");
+                btn.disabled = false;
+                btnText.innerText = "Empezar Ahora";
+            }
+        }
+
+        async function syncStamp(actionType) {
+            try {
+                // Sincroniza el conteo de sellos con Google Sheets de forma silenciosa
+                await fetch(CONFIG.scriptURL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nombre: user.name,
+                        email: user.email,
+                        whatsapp: user.whatsapp,
+                        sellos: user.stamps,
+                        accion: actionType
+                    })
+                });
+            } catch (e) { console.warn("Error de sincronización"); }
         }
 
         function renderApp() {
             document.getElementById('main-ui').classList.remove('hidden');
             document.getElementById('user-greeting').innerText = `HOLA, ${user.name} 🍕`;
-            
             const grid = document.getElementById('stamps-grid');
             grid.innerHTML = '';
             
@@ -262,40 +265,32 @@
         function openScanner() {
             document.getElementById('scanner-modal').classList.remove('hidden');
             html5QrCode = new Html5Qrcode("reader");
-            const qrConfig = { fps: 20, qrbox: { width: 250, height: 250 } };
-
+            
             html5QrCode.start(
                 { facingMode: "environment" },
-                qrConfig,
+                { fps: 20, qrbox: 250 },
                 (decodedText) => {
                     const validCode = getTodayCode();
                     if (decodedText === validCode) {
-                        onSuccess();
-                    } else {
-                        showScanError();
+                        html5QrCode.stop().then(() => {
+                            document.getElementById('scanner-modal').classList.add('hidden');
+                            user.stamps++;
+                            localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
+                            syncStamp("NUEVO_SELLO");
+                            renderApp();
+                            if (navigator.vibrate) navigator.vibrate(200);
+                        });
                     }
                 }
             ).catch(err => {
-                alert("Error: Asegúrate de dar permisos de cámara.");
+                alert("Por favor habilita los permisos de cámara.");
                 closeScanner();
             });
         }
 
-        function showScanError() {
-            const toast = document.getElementById('error-toast');
-            toast.classList.remove('hidden');
-            setTimeout(() => toast.classList.add('show'), 100);
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => toast.classList.add('hidden'), 400);
-            }, 3000);
-        }
-
         function closeScanner() {
             if (html5QrCode) {
-                html5QrCode.stop().then(() => {
-                    document.getElementById('scanner-modal').classList.add('hidden');
-                }).catch(() => {
+                html5QrCode.stop().finally(() => {
                     document.getElementById('scanner-modal').classList.add('hidden');
                 });
             } else {
@@ -303,27 +298,23 @@
             }
         }
 
-        function onSuccess() {
-            if (html5QrCode) {
-                html5QrCode.stop().then(() => {
-                    document.getElementById('scanner-modal').classList.add('hidden');
-                    user.stamps++;
-                    localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
-                    renderApp();
-                    if (navigator.vibrate) navigator.vibrate(200);
-                });
-            }
-        }
-
         function redeemReward() {
-            if (confirm("¿Confirmas que el staff te ha entregado tu pizza gratis? La tarjeta se reiniciará.")) {
+            if (confirm("¿Confirmas el canje de tu pizza gratis? La tarjeta se reiniciará.")) {
                 user.stamps = 0;
                 localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
+                syncStamp("CANJE_PREMIO");
                 location.reload();
             }
         }
 
-        window.onload = init;
+        window.onload = () => {
+            if (!user) {
+                document.getElementById('register-modal').classList.remove('hidden');
+            } else {
+                renderApp();
+            }
+            lucide.createIcons();
+        };
     </script>
 </body>
 </html>
