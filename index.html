@@ -58,9 +58,8 @@
     <script>
         const CONFIG = {
             maxStamps: 10,
-            storageKey: "slice_dog_v6_stable",
+            storageKey: "slice_dog_v7_final",
             qrPrefix: "SD-",
-            // URL actualizada proporcionada por Williams
             scriptURL: "https://script.google.com/macros/s/AKfycbxhaCU_k21Dizx-KURzedFFJIecQoA-oYaHzDdFzUdEHrrB7ylpTac2twghvOufy9vG/exec"
         };
 
@@ -68,16 +67,30 @@
         let html5QrCode;
 
         async function registerUser() {
-            const name = document.getElementById('reg-name').value;
-            const email = document.getElementById('reg-email').value;
-            const whatsapp = document.getElementById('reg-whatsapp').value;
+            const name = document.getElementById('reg-name').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const whatsapp = document.getElementById('reg-whatsapp').value.trim();
 
             if(!name || !email || !whatsapp) return alert("Completa todos los datos");
 
-            document.getElementById('btn-register').innerText = "Conectando...";
+            const btn = document.getElementById('btn-register');
+            btn.innerText = "Verificando...";
+            btn.disabled = true;
 
             try {
-                // Registro en Google Sheets
+                // 1. Verificar Duplicados en Google Sheets
+                const checkUrl = `${CONFIG.scriptURL}?checkEmail=${encodeURIComponent(email)}&checkPhone=${encodeURIComponent(whatsapp)}`;
+                const response = await fetch(checkUrl);
+                const checkResult = await response.json();
+
+                if (checkResult.exists) {
+                    alert("Este correo o WhatsApp ya están registrados en el Club.");
+                    btn.innerText = "Empezar Ahora";
+                    btn.disabled = false;
+                    return;
+                }
+
+                // 2. Si no existe, registrar con 1 SELLO DE REGALO
                 await fetch(CONFIG.scriptURL, {
                     method: 'POST',
                     mode: 'no-cors',
@@ -85,15 +98,19 @@
                         nombre: name,
                         email: email,
                         whatsapp: whatsapp,
-                        sellos: 0,
+                        sellos: 1, // <--- Regalo de bienvenida
                         accion: "REGISTRO_NUEVO"
                     })
                 });
 
-                user = { name, email, whatsapp, stamps: 0 };
+                user = { name, email, whatsapp, stamps: 1 };
                 localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
                 location.reload();
-            } catch(e) { alert("Error de red"); }
+            } catch(e) { 
+                alert("Error de conexión. Inténtalo de nuevo."); 
+                btn.innerText = "Empezar Ahora";
+                btn.disabled = false;
+            }
         }
 
         async function syncStamp(action) {
