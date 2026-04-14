@@ -6,459 +6,283 @@
     <title>Slice Dog | Club de Fidelidad</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         
-        :root {
+        :root { 
             --sd-mustard: #e9a124; 
-            --sd-terracotta: #a83226;
+            --sd-terracotta: #a83226; 
             --sd-bg: #f3e5d0; 
+            --sd-dark: #4a2311;
         }
 
         body { 
             font-family: 'Inter', sans-serif; 
             background-color: var(--sd-bg); 
+            color: var(--sd-dark);
+            margin: 0;
             -webkit-tap-highlight-color: transparent;
-            user-select: none;
-            overflow-x: hidden;
+        }
+
+        .stamp-card {
+            background: #ffffff;
+            border-radius: 2.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+        }
+
+        .stamp-active { 
+            background: linear-gradient(135deg, var(--sd-mustard) 0%, #d48a1a 100%); 
+            color: white !important;
+            border: none !important;
+            box-shadow: 0 10px 15px -3px rgba(233, 161, 36, 0.4);
+        }
+
+        .italic-black {
+            font-weight: 900;
+            font-style: italic;
+            text-transform: uppercase;
+        }
+
+        /* Estilo para el contenedor del Escáner */
+        #reader {
+            width: 100% !important;
+            border: none !important;
+            border-radius: 2rem;
+            overflow: hidden;
+        }
+
+        #reader__scan_region video {
+            object-fit: cover !important;
+            border-radius: 2rem;
+        }
+
+        #reader__dashboard { display: none !important; }
+
+        .btn-primary {
+            background-color: var(--sd-mustard);
+            box-shadow: 0 10px 20px -5px rgba(233, 161, 36, 0.5);
         }
         
-        .stamp-active {
-            background: linear-gradient(135deg, var(--sd-mustard) 0%, #d48a1a 100%);
-            box-shadow: 0 10px 15px -3px rgba(233, 161, 36, 0.4);
-            border: none !important;
-            color: white !important;
-        }
+        .btn-primary:active { transform: scale(0.96); }
 
-        .logo-shadow {
-            filter: drop-shadow(0 8px 6px rgba(0,0,0,0.1));
+        #error-toast {
+            transform: translateY(100px);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-
-        .stamp-pop {
-            animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        @keyframes pop {
-            0% { transform: scale(0.5); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-
-        .logo-press {
-            transition: transform 3s linear;
-        }
-        .logo-press:active {
-            transform: scale(0.85) rotate(5deg);
-        }
-
-        input:focus {
-            box-shadow: 0 0 0 2px var(--sd-mustard);
-        }
-
-        .btn-disabled {
-            opacity: 0.5;
-            pointer-events: none;
-            cursor: not-allowed;
-        }
-
-        .share-pulse {
-            animation: pulse-border 2s infinite;
-        }
-        @keyframes pulse-border {
-            0% { box-shadow: 0 0 0 0 rgba(168, 50, 38, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(168, 50, 38, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(168, 50, 38, 0); }
-        }
-
-        .confetti {
-            position: absolute; 
-            width: 10px; 
-            height: 10px; 
-            z-index: 50;
-            animation: fall 3s linear forwards;
-        }
-        @keyframes fall {
-            0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
-            100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
-        }
-
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: var(--sd-mustard);
-            border-radius: 10px;
-        }
+        #error-toast.show { transform: translateY(0); }
     </style>
 </head>
-<body class="text-neutral-900 min-h-screen flex flex-col items-center p-4 relative">
+<body class="min-h-screen flex flex-col items-center p-4">
 
-    <!-- Header -->
-    <header class="w-full max-w-md mb-6 text-center mt-6 flex flex-col items-center">
-        <div id="admin-trigger" class="logo-press cursor-pointer relative z-50">
-            <img src="Logo_SliceDog-05.png" alt="Slice Dog" class="w-24 h-24 mx-auto object-contain logo-shadow mb-2" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
-        </div>
-        <h1 class="text-2xl font-black uppercase italic text-[#4a2311]">Slice Dog Club</h1>
-        <p class="text-[#a83226] text-[10px] font-bold tracking-[0.3em] uppercase opacity-80">Loyalty Experience</p>
+    <!-- Header Logo -->
+    <header class="w-full max-w-md text-center py-10">
+        <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="Logo Slice Dog" class="w-16 h-16 mx-auto mb-4 drop-shadow-lg">
+        <h1 class="italic-black text-2xl tracking-tight">Slice Dog Club</h1>
+        <p class="text-[var(--sd-terracotta)] text-[10px] font-bold tracking-[0.3em] uppercase opacity-70">Loyalty Experience</p>
     </header>
 
-    <!-- Main Card -->
-    <main id="app-card" class="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl border border-white/50 overflow-hidden hidden relative z-10">
+    <!-- Main UI -->
+    <main id="main-ui" class="w-full max-w-md stamp-card overflow-hidden hidden">
         <div class="p-8 text-center">
-            <div id="status-container" class="mb-6">
-                <p id="user-welcome" class="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400 mb-1"></p>
-                <div id="progress-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 text-[#a83226] text-[10px] font-black uppercase tracking-wider mb-3">
-                    <span class="w-2 h-2 rounded-full bg-[#e9a124] animate-pulse"></span>
-                    Estatus: Miembro VIP
+            <div class="mb-6">
+                <p id="user-greeting" class="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-1"></p>
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 text-[var(--sd-terracotta)] text-[10px] font-black uppercase mb-3">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[var(--sd-mustard)] animate-pulse"></span> MIEMBRO VIP
                 </div>
-                <p id="progress-text" class="text-[#4a2311] font-black text-2xl tracking-tight leading-none italic uppercase">Cargando...</p>
+                <h2 id="status-title" class="italic-black text-2xl leading-none"></h2>
             </div>
 
+            <!-- Grid de Sellos -->
             <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-10"></div>
 
-            <div id="action-area" class="space-y-3">
-                <button id="btn-add-stamp" onclick="openPinModal('STAMP')" class="w-full py-5 bg-[#1a1a1a] text-white rounded-2xl font-black flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl hover:bg-black uppercase italic tracking-wide">
-                    <i data-lucide="plus-circle" class="w-5 h-5 text-[#e9a124]"></i> Agregar Sello
+            <!-- Botones de Acción -->
+            <div id="actions-container">
+                <button id="btn-scan" onclick="openScanner()" class="btn-primary w-full py-5 text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3">
+                    <i data-lucide="qr-code" class="w-5 h-5"></i> ¡Sellar Compra!
                 </button>
-                
-                <button id="btn-share-achievement" onclick="shareAchievement()" class="w-full py-5 bg-[#a83226] text-white rounded-2xl font-black flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl uppercase italic tracking-wide hidden share-pulse">
-                    <i data-lucide="instagram" class="w-5 h-5"></i> ¡Compartir mi Premio!
+                <button id="btn-reward" onclick="redeemReward()" class="hidden w-full py-5 bg-[var(--sd-terracotta)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3">
+                    <i data-lucide="pizza" class="w-5 h-5"></i> Canjear mi Pizza
                 </button>
             </div>
         </div>
 
-        <!-- Footer Card con Bases Legales -->
         <div class="bg-orange-50/50 border-t border-orange-100 p-6 flex items-start gap-4">
-            <div class="mt-1 bg-[#e9a124] p-1.5 rounded-lg">
-                <i data-lucide="pizza" class="w-4 h-4 text-white"></i>
+            <div class="bg-[var(--sd-mustard)] p-2.5 rounded-2xl text-white">
+                <i data-lucide="camera" class="w-4 h-4"></i>
             </div>
             <div>
-                <span class="text-[10px] text-[#a83226] uppercase tracking-widest font-black block mb-1">Tu Beneficio</span>
-                <p id="strategy-hint" class="text-[11px] text-neutral-600 leading-snug font-medium italic">
-                    ¡Gracias por unirte! Ya tienes tu primer sello de regalo por registro.
-                </p>
-                <button onclick="openTermsModal()" class="mt-2 text-[9px] text-[#e9a124] font-black uppercase tracking-widest hover:text-[#a83226] transition-colors flex items-center gap-1">
-                    <i data-lucide="file-text" class="w-3 h-3"></i> Reglas del Club
-                </button>
+                <span class="text-[10px] text-[var(--sd-terracotta)] italic-black block mb-0.5">Escaneo Directo</span>
+                <p class="text-[11px] text-neutral-600 font-medium leading-tight italic">Apunta al código QR del staff para sumar puntos al instante.</p>
             </div>
         </div>
     </main>
 
-    <!-- Modal Bases Legales -->
-    <div id="terms-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-6 z-[70] hidden">
-        <div class="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl border border-neutral-100 relative">
-            <button onclick="closeTermsModal()" class="absolute top-6 right-6 text-neutral-400 hover:text-neutral-900 bg-neutral-100 p-1.5 rounded-full">
-                <i data-lucide="x" class="w-4 h-4"></i>
+    <!-- Modal Registro (Solo primera vez) -->
+    <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
+        <div class="bg-white w-full max-w-sm rounded-[3rem] p-10 text-center">
+            <h2 class="italic-black text-2xl mb-8">Únete al Club</h2>
+            <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-5 bg-neutral-50 rounded-2xl outline-none border-2 border-transparent focus:border-[var(--sd-mustard)] transition-all text-center font-bold mb-4">
+            <button onclick="registerUser()" class="w-full py-5 bg-neutral-900 text-white rounded-[1.8rem] italic-black">
+                Empezar Ahora
             </button>
-            <div class="mb-6 text-center">
-                <div class="bg-orange-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-[#e9a124]">
-                    <i data-lucide="gavel" class="w-6 h-6"></i>
-                </div>
-                <h2 class="font-black text-xl uppercase italic text-[#4a2311]">Reglas del Club</h2>
-            </div>
+        </div>
+    </div>
+
+    <!-- Modal Escáner de QR -->
+    <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[200] flex flex-col items-center justify-center p-6 hidden">
+        <div class="w-full max-w-sm bg-white rounded-[3rem] p-4 relative">
+            <button onclick="closeScanner()" class="absolute -top-12 right-0 text-white flex items-center gap-2">
+                <span class="text-[10px] font-black uppercase">Cerrar</span>
+                <i data-lucide="x-circle"></i>
+            </button>
             
-            <div class="space-y-4 text-[11px] text-neutral-600 text-left h-64 overflow-y-auto pr-2 custom-scrollbar">
-                <p><strong>1. Participación:</strong> Los sellos se otorgan exclusivamente por la compra de pizzas Medianas o Grandes en local o Take Away directo.</p>
-                <p><strong>2. Exclusiones:</strong> No aplica para porciones individuales, bebidas, ni pedidos realizados a través de plataformas de terceros (PedidosYa/UberEats).</p>
-                <p><strong>3. El Premio:</strong> Al completar 10 sellos, el cliente recibe una (1) Pizza Individual de regalo. No canjeable por dinero ni acumulable con otras promos.</p>
-                <p><strong>4. Validación:</strong> El premio debe ser validado por el staff antes de procesar el pedido. Solo un (1) canje por visita.</p>
-                <p><strong>5. Vigencia:</strong> Programa válido hasta el <strong>31 de diciembre de 2026</strong>.</p>
-                <p><strong>6. Seguridad:</strong> Slice Dog se reserva el derecho de anular tarjetas en caso de detectar actividad fraudulenta o mal uso del PIN.</p>
-            </div>
+            <div id="reader"></div>
             
-            <button onclick="closeTermsModal()" class="w-full mt-6 py-4 bg-[#1a1a1a] text-white rounded-2xl font-black shadow-xl active:scale-95 transition-all uppercase italic">Entendido</button>
+            <div class="py-6 text-center">
+                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-2">Escaneando al Staff</p>
+                <p class="text-xs text-neutral-500 px-6 italic leading-relaxed">Enfoca el código QR que te mostrará el encargado.</p>
+            </div>
         </div>
-    </div>
 
-    <!-- Toast de Copiado -->
-    <div id="copy-toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-[#1a1a1a] text-white px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest shadow-2xl z-[100] transition-all opacity-0 pointer-events-none italic">
-        ¡Texto copiado para tus Stories! 🍕
-    </div>
-
-    <!-- Modal Registro -->
-    <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-6 z-50 hidden">
-        <div class="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl border border-neutral-100">
-            <div class="text-center mb-6">
-                <div class="bg-orange-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-[#e9a124]">
-                    <i data-lucide="gift" class="w-8 h-8"></i>
-                </div>
-                <h2 class="font-black text-2xl uppercase italic text-[#4a2311]">¡Bienvenido!</h2>
-                <p class="text-xs text-neutral-500 font-medium mt-1">Regístrate y recibe tu 1er sello <span class="text-[#a83226] font-bold text-sm italic">GRATIS</span></p>
-            </div>
-            <div class="space-y-4">
-                <input type="text" id="reg-nombre" placeholder="Nombre completo" class="w-full p-4 bg-neutral-50 rounded-xl border-none focus:outline-none">
-                <input type="email" id="reg-email" placeholder="Correo electrónico" class="w-full p-4 bg-neutral-50 rounded-xl border-none focus:outline-none">
-                <input type="tel" id="reg-whatsapp" placeholder="WhatsApp (Ej: +54...)" class="w-full p-4 bg-neutral-50 rounded-xl border-none focus:outline-none">
-                <p id="reg-error" class="text-[10px] text-red-500 font-bold hidden text-center uppercase tracking-wider italic bg-red-50 py-2 rounded-lg">Este usuario ya se encuentra registrado.</p>
-                <button id="btn-registro" onclick="processRegistration()" class="w-full py-5 bg-[#1a1a1a] text-white rounded-2xl font-black shadow-xl active:scale-95 transition-all uppercase italic flex items-center justify-center gap-2">
-                    <span>Obtener mi Regalo</span>
-                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Panel Administrativo -->
-    <div id="admin-panel" class="fixed inset-0 bg-white z-[60] flex flex-col p-6 hidden overflow-y-auto">
-        <div class="flex justify-between items-center mb-8">
-            <h2 class="font-black text-2xl uppercase italic text-[#4a2311]">Panel Admin</h2>
-            <button onclick="closeAdmin()" class="bg-neutral-100 p-2 rounded-full"><i data-lucide="x"></i></button>
-        </div>
-        <div class="bg-orange-50 p-6 rounded-[2rem] border border-orange-100 mb-6">
-            <h3 class="font-black text-sm uppercase mb-4 text-[#a83226] flex items-center gap-2"><i data-lucide="user-plus" class="w-4 h-4"></i> Registro Manual</h3>
-            <div class="space-y-3">
-                <input type="text" id="admin-nombre" placeholder="Nombre del Cliente" class="w-full p-4 rounded-xl border-none shadow-sm outline-none">
-                <input type="email" id="admin-email" placeholder="Email" class="w-full p-4 rounded-xl border-none shadow-sm outline-none">
-                <input type="tel" id="admin-whatsapp" placeholder="WhatsApp" class="w-full p-4 rounded-xl border-none shadow-sm outline-none">
-                <button onclick="adminRegister()" id="btn-admin-reg" class="w-full py-4 bg-[#e9a124] text-white rounded-xl font-black uppercase italic shadow-lg active:scale-95 transition-all">Registrar Cliente</button>
-            </div>
-        </div>
-        <div class="mt-auto p-4 text-center">
-            <button onclick="resetLocalData()" class="text-[10px] text-red-400 font-bold uppercase tracking-widest opacity-30 hover:opacity-100 transition-opacity italic">Resetear datos locales</button>
-        </div>
-    </div>
-
-    <!-- Modal PIN -->
-    <div id="pin-modal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-6 z-50">
-        <div class="bg-white w-full max-w-xs rounded-[2.5rem] p-10 shadow-2xl border border-neutral-200">
-            <div class="flex flex-col items-center mb-8">
-                <div class="bg-[#1a1a1a] p-4 rounded-2xl mb-4 shadow-xl rotate-3">
-                    <i data-lucide="key" class="text-[#e9a124] w-6 h-6"></i>
-                </div>
-                <h2 class="font-black text-xl text-center uppercase italic text-[#4a2311]">Staff Pin</h2>
-            </div>
-            <input type="text" id="pin-input" class="w-full text-center text-3xl tracking-[0.2em] border-b-4 border-neutral-100 mb-10 focus:outline-none font-black text-[#1a1a1a] uppercase" placeholder="******" maxlength="6">
-            <div class="flex flex-col gap-2">
-                <button id="btn-pin-authorize" onclick="validatePin()" class="w-full py-5 bg-[#1a1a1a] text-white rounded-2xl font-black shadow-xl uppercase italic flex items-center justify-center gap-2">
-                    <span id="btn-pin-text">Autorizar</span>
-                </button>
-                <button onclick="closePinModal()" class="w-full py-3 text-neutral-400 text-[10px] font-black uppercase tracking-widest text-center">Cerrar</button>
-            </div>
+        <!-- Toast de Error de Validación -->
+        <div id="error-toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-red-600 text-white px-8 py-4 rounded-full flex items-center gap-3 shadow-2xl hidden z-[300]">
+            <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+            <span class="text-[10px] font-black uppercase italic">Código caducado o inválido</span>
         </div>
     </div>
 
     <script>
         const CONFIG = {
-            totalStamps: 10,
-            masterPin: "SD2024", 
-            scriptURL: "https://script.google.com/macros/s/AKfycbxhaCU_k21Dizx-KURzedFFJIecQoA-oYaHzDdFzUdEHrrB7ylpTac2twghvOufy9vG/exec",
-            storageKey: "slicedog_loyalty_data_v3"
+            maxStamps: 10,
+            storageKey: "slice_dog_user_data_v3",
+            qrPrefix: "SD-"
         };
-        
-        let userData = JSON.parse(localStorage.getItem(CONFIG.storageKey));
-        let pendingAction = null;
-        let pressTimer;
-        let isProcessing = false;
-        let confettiFired = false;
 
-        function initApp() {
-            const trigger = document.getElementById('admin-trigger');
-            trigger.addEventListener('mousedown', startPress);
-            trigger.addEventListener('touchstart', startPress);
-            trigger.addEventListener('mouseup', endPress);
-            trigger.addEventListener('touchend', endPress);
+        let user = JSON.parse(localStorage.getItem(CONFIG.storageKey));
+        let html5QrCode;
 
-            if (!userData) {
+        // Fecha formateada para validar contra el QR del Staff
+        function getTodayCode() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            return `${CONFIG.qrPrefix}${y}-${m}-${d}`;
+        }
+
+        function init() {
+            if (!user) {
                 document.getElementById('register-modal').classList.remove('hidden');
             } else {
-                showAppUI();
+                renderApp();
             }
             lucide.createIcons();
         }
 
-        function startPress() { pressTimer = setTimeout(() => openPinModal('ADMIN'), 3000); }
-        function endPress() { clearTimeout(pressTimer); }
-
-        function openTermsModal() { document.getElementById('terms-modal').classList.remove('hidden'); }
-        function closeTermsModal() { document.getElementById('terms-modal').classList.add('hidden'); }
-
-        async function checkDuplicate(email, whatsapp) {
-            try {
-                const response = await fetch(`${CONFIG.scriptURL}?checkEmail=${encodeURIComponent(email)}&checkPhone=${encodeURIComponent(whatsapp)}`);
-                const result = await response.json();
-                return result.exists;
-            } catch (e) { return false; }
+        function registerUser() {
+            const name = document.getElementById('reg-name').value.trim();
+            if (!name) return;
+            user = { name, stamps: 0 };
+            localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
+            location.reload();
         }
 
-        async function processRegistration() {
-            const nombre = document.getElementById('reg-nombre').value;
-            const email = document.getElementById('reg-email').value;
-            const whatsapp = document.getElementById('reg-whatsapp').value;
-            const btn = document.getElementById('btn-registro');
-            const errorMsg = document.getElementById('reg-error');
-
-            if (!nombre || !email || !whatsapp) return alert("Completa todos los campos.");
+        function renderApp() {
+            document.getElementById('main-ui').classList.remove('hidden');
+            document.getElementById('user-greeting').innerText = `HOLA, ${user.name} 🍕`;
             
-            errorMsg.classList.add('hidden');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="animate-spin border-2 border-white border-t-transparent rounded-full w-4 h-4 mr-2"></span> Verificando...';
-
-            const isDuplicate = await checkDuplicate(email, whatsapp);
-            if (isDuplicate) {
-                errorMsg.classList.remove('hidden');
-                btn.disabled = false;
-                btn.innerHTML = '<span>Obtener mi Regalo</span><i data-lucide="arrow-right" class="w-4 h-4"></i>';
-                lucide.createIcons();
-                return;
-            }
-
-            userData = { nombre, email, whatsapp, sellos: 1 };
-            localStorage.setItem(CONFIG.storageKey, JSON.stringify(userData));
-            await syncToCloud("Registro + Regalo", userData);
-            document.getElementById('register-modal').classList.add('hidden');
-            showAppUI();
-        }
-
-        function showAppUI() {
-            document.getElementById('app-card').classList.remove('hidden');
-            document.getElementById('user-welcome').innerText = `Hola, ${userData.nombre.split(' ')[0]} 👋`;
-            renderStamps();
-            updateProgress();
-        }
-
-        function renderStamps() {
             const grid = document.getElementById('stamps-grid');
             grid.innerHTML = '';
-            for (let i = 0; i < CONFIG.totalStamps; i++) {
-                const div = document.createElement('div');
-                const isActive = i < userData.sellos;
-                div.className = `aspect-square rounded-2xl flex items-center justify-center border-2 transition-all ${isActive ? 'stamp-active scale-100 stamp-pop' : 'border-dashed border-neutral-200 text-neutral-200 scale-90 bg-neutral-50'}`;
-                div.innerHTML = isActive ? '<i data-lucide="pizza" class="w-6 h-6"></i>' : `<span class="text-[10px] font-black opacity-30">${i + 1}</span>`;
-                grid.appendChild(div);
+            
+            for (let i = 0; i < CONFIG.maxStamps; i++) {
+                const isActive = i < user.stamps;
+                const slot = document.createElement('div');
+                slot.className = `aspect-square rounded-2xl flex items-center justify-center border-2 transition-all duration-500 ${isActive ? 'stamp-active scale-105' : 'border-dashed border-neutral-200 bg-neutral-50'}`;
+                slot.innerHTML = isActive ? '<i data-lucide="pizza" class="w-6 h-6"></i>' : '';
+                grid.appendChild(slot);
+            }
+
+            const title = document.getElementById('status-title');
+            if (user.stamps >= CONFIG.maxStamps) {
+                title.innerHTML = `¡LISTO! <br><span class="text-[var(--sd-mustard)]">PIZZA GRATIS</span>`;
+                document.getElementById('btn-scan').classList.add('hidden');
+                document.getElementById('btn-reward').classList.remove('hidden');
+            } else {
+                title.innerText = `FALTAN ${CONFIG.maxStamps - user.stamps} PARA PREMIO`;
+                document.getElementById('btn-scan').classList.remove('hidden');
+                document.getElementById('btn-reward').classList.add('hidden');
             }
             lucide.createIcons();
         }
 
-        function updateProgress() {
-            const text = document.getElementById('progress-text');
-            const btnAdd = document.getElementById('btn-add-stamp');
-            const btnShare = document.getElementById('btn-share-achievement');
-            const hint = document.getElementById('strategy-hint');
-
-            if (userData.sellos >= CONFIG.totalStamps) {
-                text.innerHTML = `¡LISTO! <br><span class="text-[#e9a124] text-3xl font-black uppercase">Pizza Gratis</span>`;
-                btnAdd.classList.add('hidden');
-                btnShare.classList.remove('hidden');
-                hint.innerText = "¡Felicidades! Muestra esta pantalla al staff para canjear tu pizza y comparte tu logro.";
-                if (!confettiFired) { createConfetti(); confettiFired = true; }
-            } else {
-                text.innerHTML = `Faltan ${CONFIG.totalStamps - userData.sellos} pizzas`;
-                btnAdd.classList.remove('hidden');
-                btnShare.classList.add('hidden');
-                confettiFired = false;
-            }
-        }
-
-        function createConfetti() {
-            const colors = ['#e9a124', '#a83226', '#f3e5d0', '#4a2311'];
-            for(let i=0; i<40; i++) {
-                const c = document.createElement('div');
-                c.className = 'confetti';
-                c.style.left = Math.random() * 100 + 'vw';
-                c.style.top = '-20px';
-                c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-                c.style.animationDelay = Math.random() * 1.5 + 's';
-                c.style.animationDuration = (Math.random() * 2 + 2) + 's';
-                document.body.appendChild(c);
-                setTimeout(() => { c.remove() }, 5000);
-            }
-        }
-
-        async function validatePin() {
-            if (isProcessing) return;
-            const input = document.getElementById('pin-input').value.toUpperCase();
-            const btn = document.getElementById('btn-pin-authorize');
-            const btnText = document.getElementById('btn-pin-text');
-
-            if (input === CONFIG.masterPin) {
-                isProcessing = true;
-                btn.classList.add('btn-disabled');
-                btnText.innerHTML = '<span class="animate-spin border-2 border-white border-t-transparent rounded-full w-4 h-4"></span>';
-
-                if (pendingAction === 'ADMIN') {
-                    document.getElementById('admin-panel').classList.remove('hidden');
-                    closePinModal();
-                } else {
-                    userData.sellos++;
-                    localStorage.setItem(CONFIG.storageKey, JSON.stringify(userData));
-                    await syncToCloud("Sello Adicional", userData);
-                    renderStamps();
-                    updateProgress();
-                    closePinModal();
-                }
-            } else {
-                alert("PIN Staff Incorrecto");
-                document.getElementById('pin-input').value = '';
-            }
-        }
-
-        function shareAchievement() {
-            const textToShare = `¡Acabo de ganar mi pizza GRATIS en Slice Dog! 🍕🔥 ¡Completa tu tarjeta tú también y únete al club! #SliceDogClub #PizzaLover`;
+        // --- LÓGICA DE ESCANEO DIRECTO (SIN PIN) ---
+        function openScanner() {
+            document.getElementById('scanner-modal').classList.remove('hidden');
+            html5QrCode = new Html5Qrcode("reader");
             
-            const handleReset = async () => {
-                setTimeout(async () => {
-                    if(confirm("¿Ya mostraste esta pantalla al staff para canjear tu pizza?\n\nAl presionar 'Aceptar', tu tarjeta se reiniciará para que puedas empezar a sumar sellos de nuevo.")) {
-                        userData.sellos = 0;
-                        localStorage.setItem(CONFIG.storageKey, JSON.stringify(userData));
-                        await syncToCloud("Premio Canjeado", userData);
-                        location.reload();
-                    }
-                }, 1500);
-            };
+            const qrConfig = { fps: 20, qrbox: { width: 250, height: 250 } };
 
-            if (navigator.share) {
-                navigator.share({ title: 'Slice Dog Club', text: textToShare, url: window.location.href })
-                    .then(() => handleReset())
-                    .catch(() => handleReset()); // Reset even if they cancel dialog but "shared"
+            html5QrCode.start(
+                { facingMode: "environment" },
+                qrConfig,
+                (decodedText) => {
+                    const validCode = getTodayCode();
+                    if (decodedText === validCode) {
+                        onSuccess();
+                    } else {
+                        showScanError();
+                    }
+                }
+            ).catch(err => {
+                alert("Error al abrir cámara: " + err);
+                closeScanner();
+            });
+        }
+
+        function showScanError() {
+            const toast = document.getElementById('error-toast');
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('show'), 100);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.classList.add('hidden'), 400);
+            }, 3000);
+        }
+
+        function closeScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('scanner-modal').classList.add('hidden');
+                }).catch(() => {
+                    document.getElementById('scanner-modal').classList.add('hidden');
+                });
             } else {
-                const textArea = document.createElement("textarea");
-                textArea.value = textToShare;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-                showToast();
-                handleReset();
+                document.getElementById('scanner-modal').classList.add('hidden');
             }
         }
 
-        function showToast() {
-            const toast = document.getElementById('copy-toast');
-            toast.style.opacity = "1";
-            setTimeout(() => { toast.style.opacity = "0"; }, 3000);
-        }
-
-        async function syncToCloud(accion, user) {
-            try {
-                await fetch(CONFIG.scriptURL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...user, accion })
+        function onSuccess() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('scanner-modal').classList.add('hidden');
+                    user.stamps++;
+                    localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
+                    renderApp();
+                    if (navigator.vibrate) navigator.vibrate(200);
                 });
-            } catch (e) {}
+            }
         }
 
-        function openPinModal(type) { 
-            pendingAction = type;
-            isProcessing = false;
-            document.getElementById('btn-pin-authorize').classList.remove('btn-disabled');
-            document.getElementById('btn-pin-text').innerText = 'Autorizar';
-            document.getElementById('pin-modal').classList.remove('hidden'); 
-            setTimeout(() => document.getElementById('pin-input').focus(), 100);
+        function redeemReward() {
+            if (confirm("¿Estás con el staff de Slice Dog? Solo ellos pueden validar tu canje.")) {
+                user.stamps = 0;
+                localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
+                location.reload();
+            }
         }
 
-        function closePinModal() { 
-            document.getElementById('pin-modal').classList.add('hidden'); 
-            document.getElementById('pin-input').value = ''; 
-        }
-
-        function closeAdmin() { document.getElementById('admin-panel').classList.add('hidden'); }
-        function resetLocalData() { if(confirm("¿Seguro? Se borrará el progreso local.")) { localStorage.removeItem(CONFIG.storageKey); location.reload(); }}
-
-        window.onload = initApp;
+        window.onload = init;
     </script>
 </body>
 </html>
