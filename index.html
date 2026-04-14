@@ -44,7 +44,26 @@
             text-transform: uppercase;
         }
 
-        /* Estilo para el contenedor del Escáner */
+        /* Input Styles */
+        .sd-input {
+            width: 100%;
+            padding: 1.25rem;
+            background-color: #f9f9f9;
+            border: 2px solid transparent;
+            border-radius: 1.2rem;
+            font-weight: 700;
+            text-align: center;
+            transition: all 0.3s;
+            outline: none;
+            margin-bottom: 0.75rem;
+        }
+
+        .sd-input:focus {
+            border-color: var(--sd-mustard);
+            background-color: white;
+            box-shadow: 0 10px 15px -3px rgba(233, 161, 36, 0.1);
+        }
+
         #reader {
             width: 100% !important;
             border: none !important;
@@ -56,8 +75,6 @@
             object-fit: cover !important;
             border-radius: 2rem;
         }
-
-        #reader__dashboard { display: none !important; }
 
         .btn-primary {
             background-color: var(--sd-mustard);
@@ -78,11 +95,11 @@
     <!-- Header Logo -->
     <header class="w-full max-w-md text-center py-10">
         <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="Logo Slice Dog" class="w-16 h-16 mx-auto mb-4 drop-shadow-lg">
-        <h1 class="italic-black text-2xl tracking-tight">Slice Dog Club</h1>
+        <h1 class="italic-black text-2xl tracking-tight text-[var(--sd-dark)]">Slice Dog Club</h1>
         <p class="text-[var(--sd-terracotta)] text-[10px] font-bold tracking-[0.3em] uppercase opacity-70">Loyalty Experience</p>
     </header>
 
-    <!-- Main UI -->
+    <!-- UI Principal -->
     <main id="main-ui" class="w-full max-w-md stamp-card overflow-hidden hidden">
         <div class="p-8 text-center">
             <div class="mb-6">
@@ -96,7 +113,7 @@
             <!-- Grid de Sellos -->
             <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-10"></div>
 
-            <!-- Botones de Acción -->
+            <!-- Botones -->
             <div id="actions-container">
                 <button id="btn-scan" onclick="openScanner()" class="btn-primary w-full py-5 text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3">
                     <i data-lucide="qr-code" class="w-5 h-5"></i> ¡Sellar Compra!
@@ -118,18 +135,31 @@
         </div>
     </main>
 
-    <!-- Modal Registro (Solo primera vez) -->
+    <!-- Modal Registro (Ahora con WhatsApp y Email) -->
     <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
-        <div class="bg-white w-full max-w-sm rounded-[3rem] p-10 text-center">
-            <h2 class="italic-black text-2xl mb-8">Únete al Club</h2>
-            <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-5 bg-neutral-50 rounded-2xl outline-none border-2 border-transparent focus:border-[var(--sd-mustard)] transition-all text-center font-bold mb-4">
-            <button onclick="registerUser()" class="w-full py-5 bg-neutral-900 text-white rounded-[1.8rem] italic-black">
-                Empezar Ahora
+        <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center shadow-2xl">
+            <div class="mb-6">
+                <h2 class="italic-black text-2xl text-[var(--sd-dark)] leading-tight">Únete al Club</h2>
+                <p class="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mt-1">Beneficios exclusivos</p>
+            </div>
+            
+            <div class="space-y-1 mb-6">
+                <input type="text" id="reg-name" placeholder="Tu Nombre" class="sd-input">
+                <input type="email" id="reg-email" placeholder="Correo Electrónico" class="sd-input">
+                <input type="tel" id="reg-whatsapp" placeholder="WhatsApp (Ej: +569...)" class="sd-input">
+            </div>
+
+            <button onclick="registerUser()" class="w-full py-5 bg-[var(--sd-dark)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-2">
+                Empezar Ahora <i data-lucide="arrow-right" class="w-4 h-4"></i>
             </button>
+            
+            <p class="mt-6 text-[9px] text-neutral-400 font-medium leading-relaxed italic">
+                Al registrarte aceptas recibir promociones de Slice Dog por correo y WhatsApp.
+            </p>
         </div>
     </div>
 
-    <!-- Modal Escáner de QR -->
+    <!-- Modal Escáner -->
     <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[200] flex flex-col items-center justify-center p-6 hidden">
         <div class="w-full max-w-sm bg-white rounded-[3rem] p-4 relative">
             <button onclick="closeScanner()" class="absolute -top-12 right-0 text-white flex items-center gap-2">
@@ -140,29 +170,28 @@
             <div id="reader"></div>
             
             <div class="py-6 text-center">
-                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-2">Escaneando al Staff</p>
-                <p class="text-xs text-neutral-500 px-6 italic leading-relaxed">Enfoca el código QR que te mostrará el encargado.</p>
+                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-2">Validando con el Staff</p>
+                <p class="text-xs text-neutral-500 px-6 italic leading-relaxed">Escanea el código QR que te mostrará el encargado.</p>
             </div>
         </div>
 
-        <!-- Toast de Error de Validación -->
+        <!-- Toast de Error -->
         <div id="error-toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-red-600 text-white px-8 py-4 rounded-full flex items-center gap-3 shadow-2xl hidden z-[300]">
             <i data-lucide="alert-triangle" class="w-5 h-5"></i>
-            <span class="text-[10px] font-black uppercase italic">Código caducado o inválido</span>
+            <span class="text-[10px] font-black uppercase italic">Código inválido o caducado</span>
         </div>
     </div>
 
     <script>
         const CONFIG = {
             maxStamps: 10,
-            storageKey: "slice_dog_user_data_v3",
+            storageKey: "slice_dog_user_data_v4",
             qrPrefix: "SD-"
         };
 
         let user = JSON.parse(localStorage.getItem(CONFIG.storageKey));
         let html5QrCode;
 
-        // Fecha formateada para validar contra el QR del Staff
         function getTodayCode() {
             const now = new Date();
             const y = now.getFullYear();
@@ -182,8 +211,22 @@
 
         function registerUser() {
             const name = document.getElementById('reg-name').value.trim();
-            if (!name) return;
-            user = { name, stamps: 0 };
+            const email = document.getElementById('reg-email').value.trim();
+            const whatsapp = document.getElementById('reg-whatsapp').value.trim();
+
+            if (!name || !email || !whatsapp) {
+                alert("Williams dice: Por favor completa todos los campos para continuar.");
+                return;
+            }
+
+            // Guardar datos completos del cliente
+            user = { 
+                name: name, 
+                email: email, 
+                whatsapp: whatsapp, 
+                stamps: 0 
+            };
+            
             localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
             location.reload();
         }
@@ -216,11 +259,9 @@
             lucide.createIcons();
         }
 
-        // --- LÓGICA DE ESCANEO DIRECTO (SIN PIN) ---
         function openScanner() {
             document.getElementById('scanner-modal').classList.remove('hidden');
             html5QrCode = new Html5Qrcode("reader");
-            
             const qrConfig = { fps: 20, qrbox: { width: 250, height: 250 } };
 
             html5QrCode.start(
@@ -235,7 +276,7 @@
                     }
                 }
             ).catch(err => {
-                alert("Error al abrir cámara: " + err);
+                alert("Error: Asegúrate de dar permisos de cámara.");
                 closeScanner();
             });
         }
@@ -275,7 +316,7 @@
         }
 
         function redeemReward() {
-            if (confirm("¿Estás con el staff de Slice Dog? Solo ellos pueden validar tu canje.")) {
+            if (confirm("¿Confirmas que el staff te ha entregado tu pizza gratis? La tarjeta se reiniciará.")) {
                 user.stamps = 0;
                 localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
                 location.reload();
