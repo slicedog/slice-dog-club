@@ -9,192 +9,78 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        
-        :root { 
-            --sd-mustard: #e9a124; 
-            --sd-terracotta: #a83226; 
-            --sd-bg: #f3e5d0; 
-            --sd-dark: #4a2311;
-        }
-
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: var(--sd-bg); 
-            color: var(--sd-dark);
-            margin: 0;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        .stamp-card {
-            background: #ffffff;
-            border-radius: 2.5rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
-        }
-
-        .stamp-active { 
-            background: linear-gradient(135deg, var(--sd-mustard) 0%, #d48a1a 100%); 
-            color: white !important;
-            border: none !important;
-            box-shadow: 0 10px 15px -3px rgba(233, 161, 36, 0.4);
-        }
-
-        .italic-black {
-            font-weight: 900;
-            font-style: italic;
-            text-transform: uppercase;
-        }
-
-        .sd-input {
-            width: 100%;
-            padding: 1.25rem;
-            background-color: #f9f9f9;
-            border: 2px solid transparent;
-            border-radius: 1.2rem;
-            font-weight: 700;
-            text-align: center;
-            transition: all 0.3s;
-            outline: none;
-            margin-bottom: 0.75rem;
-        }
-
-        .sd-input:focus {
-            border-color: var(--sd-mustard);
-            background-color: white;
-            box-shadow: 0 10px 15px -3px rgba(233, 161, 36, 0.1);
-        }
-
-        #reader {
-            width: 100% !important;
-            border: none !important;
-            border-radius: 2rem;
-            overflow: hidden;
-        }
-
-        #reader__scan_region video {
-            object-fit: cover !important;
-            border-radius: 2rem;
-        }
-
-        .btn-primary {
-            background-color: var(--sd-mustard);
-            box-shadow: 0 10px 20px -5px rgba(233, 161, 36, 0.5);
-        }
-        
-        .btn-primary:disabled {
-            background-color: #ccc;
-            box-shadow: none;
-            cursor: not-allowed;
-        }
-
-        #error-toast {
-            transform: translateY(100px);
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        #error-toast.show { transform: translateY(0); }
+        :root { --sd-mustard: #e9a124; --sd-dark: #4a2311; --sd-bg: #f3e5d0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); color: var(--sd-dark); margin: 0; }
+        .stamp-card { background: #ffffff; border-radius: 2.5rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1); }
+        .stamp-active { background: linear-gradient(135deg, var(--sd-mustard) 0%, #d48a1a 100%); color: white !important; border: none !important; }
+        .italic-black { font-weight: 900; font-style: italic; text-transform: uppercase; }
+        .sd-input { width: 100%; padding: 1.25rem; background-color: #f9f9f9; border: 2px solid transparent; border-radius: 1.2rem; font-weight: 700; text-align: center; outline: none; margin-bottom: 0.75rem; }
+        .sd-input:focus { border-color: var(--sd-mustard); background-color: white; }
+        #reader { width: 100% !important; border: none !important; border-radius: 2rem; overflow: hidden; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
 
     <header class="w-full max-w-md text-center py-10">
-        <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="Logo Slice Dog" class="w-16 h-16 mx-auto mb-4 drop-shadow-lg">
-        <h1 class="italic-black text-2xl tracking-tight text-[var(--sd-dark)]">Slice Dog Club</h1>
-        <p class="text-[var(--sd-terracotta)] text-[10px] font-bold tracking-[0.3em] uppercase opacity-70">Loyalty Experience</p>
+        <h1 class="italic-black text-2xl tracking-tight">Slice Dog Club</h1>
+        <p class="text-[10px] font-bold tracking-[0.3em] uppercase opacity-70">Loyalty Experience</p>
     </header>
 
     <main id="main-ui" class="w-full max-w-md stamp-card overflow-hidden hidden">
         <div class="p-8 text-center">
-            <div class="mb-6">
-                <p id="user-greeting" class="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-1"></p>
-                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 text-[var(--sd-terracotta)] text-[10px] font-black uppercase mb-3">
-                    <span class="w-1.5 h-1.5 rounded-full bg-[var(--sd-mustard)] animate-pulse"></span> MIEMBRO VIP
-                </div>
-                <h2 id="status-title" class="italic-black text-2xl leading-none"></h2>
-            </div>
-
+            <p id="user-greeting" class="text-[10px] font-black uppercase text-neutral-400 mb-1"></p>
+            <h2 id="status-title" class="italic-black text-2xl mb-8 leading-none"></h2>
             <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-10"></div>
-
-            <div id="actions-container">
-                <button id="btn-scan" onclick="openScanner()" class="btn-primary w-full py-5 text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3">
-                    <i data-lucide="qr-code" class="w-5 h-5"></i> ¡Sellar Compra!
-                </button>
-                <button id="btn-reward" onclick="redeemReward()" class="hidden w-full py-5 bg-[var(--sd-terracotta)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3">
-                    <i data-lucide="pizza" class="w-5 h-5"></i> Canjear mi Pizza
-                </button>
-            </div>
+            <button id="btn-scan" onclick="openScanner()" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg">
+                <i data-lucide="qr-code"></i> ¡Sellar Compra!
+            </button>
+            <button id="btn-reward" onclick="redeemReward()" class="hidden w-full py-5 bg-red-700 text-white rounded-[1.8rem] italic-black">Canjear Premio</button>
         </div>
     </main>
 
     <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
-        <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center shadow-2xl">
-            <div class="mb-6">
-                <h2 class="italic-black text-2xl text-[var(--sd-dark)] leading-tight">Únete al Club</h2>
-                <p class="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mt-1">Beneficios exclusivos</p>
-            </div>
-            
-            <div class="space-y-1 mb-6">
-                <input type="text" id="reg-name" placeholder="Tu Nombre" class="sd-input">
-                <input type="email" id="reg-email" placeholder="Correo Electrónico" class="sd-input">
-                <input type="tel" id="reg-whatsapp" placeholder="WhatsApp (Ej: +569...)" class="sd-input">
-            </div>
-
-            <button id="btn-register" onclick="registerUser()" class="w-full py-5 bg-[var(--sd-dark)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-2">
-                <span id="reg-text">Empezar Ahora</span> <i data-lucide="arrow-right" class="w-4 h-4"></i>
-            </button>
+        <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center">
+            <h2 class="italic-black text-2xl mb-6">Únete al Club</h2>
+            <input type="text" id="reg-name" placeholder="Tu Nombre" class="sd-input">
+            <input type="email" id="reg-email" placeholder="Correo Electrónico" class="sd-input">
+            <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="sd-input">
+            <button id="btn-register" onclick="registerUser()" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black">Empezar Ahora</button>
         </div>
     </div>
 
     <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[200] flex flex-col items-center justify-center p-6 hidden">
         <div class="w-full max-w-sm bg-white rounded-[3rem] p-4 relative">
-            <button onclick="closeScanner()" class="absolute -top-12 right-0 text-white flex items-center gap-2">
-                <span class="text-[10px] font-black uppercase">Cerrar</span>
-                <i data-lucide="x-circle"></i>
-            </button>
             <div id="reader"></div>
+            <button onclick="closeScanner()" class="mt-4 w-full py-2 text-xs font-bold uppercase opacity-50">Cerrar</button>
         </div>
     </div>
 
     <script>
         const CONFIG = {
             maxStamps: 10,
-            storageKey: "slice_dog_user_data_v5",
+            storageKey: "slice_dog_v6_stable",
             qrPrefix: "SD-",
-            // IMPORTANTE: Asegúrate de que esta URL sea la de tu Script de Google Sheets
+            // URL actualizada proporcionada por Williams
             scriptURL: "https://script.google.com/macros/s/AKfycbxhaCU_k21Dizx-KURzedFFJIecQoA-oYaHzDdFzUdEHrrB7ylpTac2twghvOufy9vG/exec"
         };
 
         let user = JSON.parse(localStorage.getItem(CONFIG.storageKey));
         let html5QrCode;
 
-        function getTodayCode() {
-            const now = new Date();
-            const y = now.getFullYear();
-            const m = String(now.getMonth() + 1).padStart(2, '0');
-            const d = String(now.getDate()).padStart(2, '0');
-            return `${CONFIG.qrPrefix}${y}-${m}-${d}`;
-        }
-
         async function registerUser() {
-            const name = document.getElementById('reg-name').value.trim();
-            const email = document.getElementById('reg-email').value.trim();
-            const whatsapp = document.getElementById('reg-whatsapp').value.trim();
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value;
+            const whatsapp = document.getElementById('reg-whatsapp').value;
 
-            if (!name || !email || !whatsapp) {
-                alert("Por favor completa todos los campos.");
-                return;
-            }
+            if(!name || !email || !whatsapp) return alert("Completa todos los datos");
 
-            const btn = document.getElementById('btn-register');
-            const btnText = document.getElementById('reg-text');
-            btn.disabled = true;
-            btnText.innerText = "Registrando...";
+            document.getElementById('btn-register').innerText = "Conectando...";
 
             try {
-                // Enviar a Google Sheets (Usando POST para registro)
+                // Registro en Google Sheets
                 await fetch(CONFIG.scriptURL, {
                     method: 'POST',
                     mode: 'no-cors',
-                    cache: 'no-cache',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         nombre: name,
                         email: email,
@@ -204,35 +90,24 @@
                     })
                 });
 
-                // Guardar localmente para que el cliente vea su tarjeta
                 user = { name, email, whatsapp, stamps: 0 };
                 localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
                 location.reload();
-
-            } catch (e) {
-                console.error(e);
-                alert("Error al conectar con la base de datos.");
-                btn.disabled = false;
-                btnText.innerText = "Empezar Ahora";
-            }
+            } catch(e) { alert("Error de red"); }
         }
 
-        async function syncStamp(actionType) {
-            try {
-                // Sincroniza el conteo de sellos con Google Sheets de forma silenciosa
-                await fetch(CONFIG.scriptURL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        nombre: user.name,
-                        email: user.email,
-                        whatsapp: user.whatsapp,
-                        sellos: user.stamps,
-                        accion: actionType
-                    })
-                });
-            } catch (e) { console.warn("Error de sincronización"); }
+        async function syncStamp(action) {
+            fetch(CONFIG.scriptURL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({
+                    nombre: user.name,
+                    email: user.email,
+                    whatsapp: user.whatsapp,
+                    sellos: user.stamps,
+                    accion: action
+                })
+            });
         }
 
         function renderApp() {
@@ -240,24 +115,19 @@
             document.getElementById('user-greeting').innerText = `HOLA, ${user.name} 🍕`;
             const grid = document.getElementById('stamps-grid');
             grid.innerHTML = '';
-            
             for (let i = 0; i < CONFIG.maxStamps; i++) {
-                const isActive = i < user.stamps;
-                const slot = document.createElement('div');
-                slot.className = `aspect-square rounded-2xl flex items-center justify-center border-2 transition-all duration-500 ${isActive ? 'stamp-active scale-105' : 'border-dashed border-neutral-200 bg-neutral-50'}`;
-                slot.innerHTML = isActive ? '<i data-lucide="pizza" class="w-6 h-6"></i>' : '';
-                grid.appendChild(slot);
+                const active = i < user.stamps;
+                grid.innerHTML += `<div class="aspect-square rounded-2xl flex items-center justify-center border-2 ${active ? 'stamp-active' : 'border-dashed border-neutral-200 bg-neutral-50'}">
+                    ${active ? '<i data-lucide="pizza"></i>' : ''}
+                </div>`;
             }
-
             const title = document.getElementById('status-title');
-            if (user.stamps >= CONFIG.maxStamps) {
-                title.innerHTML = `¡LISTO! <br><span class="text-[var(--sd-mustard)]">PIZZA GRATIS</span>`;
+            if(user.stamps >= 10) {
+                title.innerHTML = "¡LISTO! <span class='text-[var(--sd-mustard)]'>PIZZA GRATIS</span>";
                 document.getElementById('btn-scan').classList.add('hidden');
                 document.getElementById('btn-reward').classList.remove('hidden');
             } else {
-                title.innerText = `FALTAN ${CONFIG.maxStamps - user.stamps} PARA PREMIO`;
-                document.getElementById('btn-scan').classList.remove('hidden');
-                document.getElementById('btn-reward').classList.add('hidden');
+                title.innerText = `FALTAN ${10 - user.stamps} PARA PREMIO`;
             }
             lucide.createIcons();
         }
@@ -265,56 +135,25 @@
         function openScanner() {
             document.getElementById('scanner-modal').classList.remove('hidden');
             html5QrCode = new Html5Qrcode("reader");
-            
-            html5QrCode.start(
-                { facingMode: "environment" },
-                { fps: 20, qrbox: 250 },
-                (decodedText) => {
-                    const validCode = getTodayCode();
-                    if (decodedText === validCode) {
-                        html5QrCode.stop().then(() => {
-                            document.getElementById('scanner-modal').classList.add('hidden');
-                            user.stamps++;
-                            localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
-                            syncStamp("NUEVO_SELLO");
-                            renderApp();
-                            if (navigator.vibrate) navigator.vibrate(200);
-                        });
-                    }
+            const today = new Date();
+            const validCode = `${CONFIG.qrPrefix}${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+            html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, (text) => {
+                if(text === validCode) {
+                    html5QrCode.stop().then(() => {
+                        document.getElementById('scanner-modal').classList.add('hidden');
+                        user.stamps++;
+                        localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
+                        syncStamp("NUEVO_SELLO");
+                        renderApp();
+                    });
                 }
-            ).catch(err => {
-                alert("Por favor habilita los permisos de cámara.");
-                closeScanner();
-            });
+            }).catch(() => alert("Error de cámara"));
         }
 
-        function closeScanner() {
-            if (html5QrCode) {
-                html5QrCode.stop().finally(() => {
-                    document.getElementById('scanner-modal').classList.add('hidden');
-                });
-            } else {
-                document.getElementById('scanner-modal').classList.add('hidden');
-            }
-        }
+        function closeScanner() { if(html5QrCode) html5QrCode.stop(); document.getElementById('scanner-modal').classList.add('hidden'); }
 
-        function redeemReward() {
-            if (confirm("¿Confirmas el canje de tu pizza gratis? La tarjeta se reiniciará.")) {
-                user.stamps = 0;
-                localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
-                syncStamp("CANJE_PREMIO");
-                location.reload();
-            }
-        }
-
-        window.onload = () => {
-            if (!user) {
-                document.getElementById('register-modal').classList.remove('hidden');
-            } else {
-                renderApp();
-            }
-            lucide.createIcons();
-        };
+        window.onload = () => { if(!user) document.getElementById('register-modal').classList.remove('hidden'); else renderApp(); lucide.createIcons(); };
     </script>
 </body>
 </html>
