@@ -42,7 +42,7 @@
         <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center">
             <h2 class="italic-black text-2xl mb-6">Únete al Club</h2>
             <input type="text" id="reg-name" placeholder="Tu Nombre" class="sd-input">
-            <input type="email" id="reg-email" placeholder="Correo Electrónico" class="sd-input">
+            <input type="email" id="reg-email" placeholder="Correo Eléctronico" class="sd-input">
             <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="sd-input">
             <button id="btn-register" onclick="registerUser()" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black">Empezar Ahora</button>
         </div>
@@ -58,7 +58,7 @@
     <script>
         const CONFIG = {
             maxStamps: 10,
-            storageKey: "slice_dog_v7_final",
+            storageKey: "slice_dog_v8_final", // Nueva clave para probar el login
             qrPrefix: "SD-",
             scriptURL: "https://script.google.com/macros/s/AKfycbxhaCU_k21Dizx-KURzedFFJIecQoA-oYaHzDdFzUdEHrrB7ylpTac2twghvOufy9vG/exec"
         };
@@ -74,36 +74,40 @@
             if(!name || !email || !whatsapp) return alert("Completa todos los datos");
 
             const btn = document.getElementById('btn-register');
-            btn.innerText = "Verificando...";
+            btn.innerText = "Sincronizando...";
             btn.disabled = true;
 
             try {
-                // 1. Verificar Duplicados en Google Sheets
+                // Verificar si ya existe en la base de datos
                 const checkUrl = `${CONFIG.scriptURL}?checkEmail=${encodeURIComponent(email)}&checkPhone=${encodeURIComponent(whatsapp)}`;
                 const response = await fetch(checkUrl);
                 const checkResult = await response.json();
 
                 if (checkResult.exists) {
-                    alert("Este correo o WhatsApp ya están registrados en el Club.");
-                    btn.innerText = "Empezar Ahora";
-                    btn.disabled = false;
-                    return;
+                    // ¡RECONOCIMIENTO INTELIGENTE! Recuperamos sus datos
+                    alert(`¡Hola de nuevo, ${checkResult.name}! Hemos recuperado tu tarjeta con ${checkResult.stamps} sellos.`);
+                    user = { 
+                        name: checkResult.name, 
+                        email: checkResult.email, 
+                        whatsapp: checkResult.whatsapp, 
+                        stamps: checkResult.stamps 
+                    };
+                } else {
+                    // REGISTRO NUEVO con 1 sello de regalo
+                    await fetch(CONFIG.scriptURL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        body: JSON.stringify({
+                            nombre: name,
+                            email: email,
+                            whatsapp: whatsapp,
+                            sellos: 1,
+                            accion: "REGISTRO_NUEVO"
+                        })
+                    });
+                    user = { name, email, whatsapp, stamps: 1 };
                 }
 
-                // 2. Si no existe, registrar con 1 SELLO DE REGALO
-                await fetch(CONFIG.scriptURL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify({
-                        nombre: name,
-                        email: email,
-                        whatsapp: whatsapp,
-                        sellos: 1, // <--- Regalo de bienvenida
-                        accion: "REGISTRO_NUEVO"
-                    })
-                });
-
-                user = { name, email, whatsapp, stamps: 1 };
                 localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
                 location.reload();
             } catch(e) { 
@@ -169,6 +173,15 @@
         }
 
         function closeScanner() { if(html5QrCode) html5QrCode.stop(); document.getElementById('scanner-modal').classList.add('hidden'); }
+
+        function redeemReward() {
+            if (confirm("¿Confirmas el canje de tu pizza gratis? La tarjeta se reiniciará.")) {
+                user.stamps = 0;
+                localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
+                syncStamp("CANJE_PREMIO");
+                location.reload();
+            }
+        }
 
         window.onload = () => { if(!user) document.getElementById('register-modal').classList.remove('hidden'); else renderApp(); lucide.createIcons(); };
     </script>
