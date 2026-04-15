@@ -46,7 +46,12 @@
             <button id="btn-scan" onclick="openScanner()" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg mb-4 transition-all duration-300">
                 <i data-lucide="qr-code"></i> ¡Sellar Compra!
             </button>
-            <button id="btn-reward" onclick="redeemReward()" class="hidden w-full py-5 bg-red-700 text-white rounded-[1.8rem] italic-black mb-4">Canjear mi Pizza Gratis</button>
+            
+            <button id="btn-reward" onclick="redeemReward()" class="hidden w-full py-5 bg-red-700 text-white rounded-[1.8rem] italic-black mb-3">Canjear mi Pizza Gratis</button>
+            
+            <button id="btn-share" onclick="shareAchievement()" class="hidden w-full py-4 border-2 border-[var(--sd-mustard)] text-[var(--sd-mustard)] rounded-[1.8rem] font-bold flex items-center justify-center gap-2 mb-4 hover:bg-orange-50 transition-colors">
+                <i data-lucide="share-2" class="w-5 h-5"></i> ¡Presumir mi premio!
+            </button>
             
             <button onclick="toggleRules(true)" class="text-[10px] font-bold uppercase tracking-widest opacity-40">Ver Reglas del Club</button>
         </div>
@@ -162,6 +167,7 @@
                 title.innerHTML = "¡LISTO! <br><span class='text-[var(--sd-mustard)] text-3xl'>PIZZA GRATIS</span>";
                 document.getElementById('btn-scan').classList.add('hidden');
                 document.getElementById('btn-reward').classList.remove('hidden');
+                document.getElementById('btn-share').classList.remove('hidden'); // Mostramos el botón de compartir
             } else if (user.stamps === 9) {
                 title.innerHTML = "¡CUIDADO! <br><span class='text-[var(--sd-mustard)]'>¡SOLO FALTA UNA!</span>";
                 title.classList.add('scale-110');
@@ -174,7 +180,7 @@
 
         function openScanner() {
             const btn = document.getElementById('btn-scan');
-            if(btn.disabled) return; // Si está bloqueado, no hace nada
+            if(btn.disabled) return;
 
             document.getElementById('scanner-modal').classList.remove('hidden');
             html5QrCode = new Html5Qrcode("reader");
@@ -183,15 +189,12 @@
 
             html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, (text) => {
                 if(text === validCode) {
-                    // ¡BLOQUEO INMEDIATO!
                     html5QrCode.stop().then(() => {
                         document.getElementById('scanner-modal').classList.add('hidden');
                         
-                        // Sumar sello localmente
                         user.stamps++;
                         localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
                         
-                        // Bloquear el botón por 30 segundos visualmente
                         btn.disabled = true;
                         btn.classList.remove('bg-[var(--sd-mustard)]');
                         btn.classList.add('bg-gray-400', 'opacity-50');
@@ -201,7 +204,6 @@
                         syncStamp("NUEVO_SELLO");
                         renderApp();
 
-                        // Desbloquear después de 30 segundos
                         setTimeout(() => {
                             btn.disabled = false;
                             btn.classList.remove('bg-gray-400', 'opacity-50');
@@ -222,6 +224,24 @@
                 localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
                 syncStamp("CANJE_PREMIO");
                 location.reload();
+            }
+        }
+
+        // NUEVO: Función para invocar el menú nativo de compartir
+        function shareAchievement() {
+            const shareData = {
+                title: '¡Pizza Gratis en Slice Dog!',
+                text: `¡Acabo de completar mis 10 sellos y gané una PIZZA GRATIS en Slice Dog Club! 🍕 Únete tú también y empieza a ganar.`,
+                url: window.location.href // Comparte el enlace de tu web app automáticamente
+            };
+
+            if (navigator.share) {
+                navigator.share(shareData)
+                    .then(() => console.log('Logro compartido con éxito'))
+                    .catch((error) => console.log('Error al compartir', error));
+            } else {
+                // Mensaje alternativo si están en una PC muy antigua o un navegador que no lo soporta
+                alert("¡Tómale una captura a esta pantalla y presume tu premio en Instagram etiquetando a @SliceDog!");
             }
         }
 
