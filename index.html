@@ -33,9 +33,40 @@
         
         #reader { width: 100% !important; border: none !important; border-radius: 2rem; overflow: hidden; }
         .rules-content { text-align: left; font-size: 0.8rem; line-height: 1.4; }
+
+        /* --- ESTILOS DE LA ANIMACIÓN DE CARGA (WILLIAMS) --- */
+        #pwa-splash { transition: opacity 0.8s ease-in-out; pointer-events: none; }
+        .pizza-anim-container { position: relative; width: 120px; height: 120px; margin-bottom: 1.5rem; }
+        .pizza-outline { position: absolute; inset: 0; border-radius: 50%; border: 3px dashed var(--sd-mustard); opacity: 0.2; }
+        .pizza-grow { 
+            position: absolute; inset: 0; border-radius: 50%; background-color: var(--sd-mustard); 
+            transform: scale(0); animation: growPizza 2.5s cubic-bezier(0.17, 0.67, 0.83, 0.67) forwards; 
+        }
+        .pizza-logo-fade { 
+            position: absolute; inset: 0; opacity: 0; display: flex; align-items: center; justify-content: center;
+            animation: fadeInLogo 1s 2s forwards;
+        }
+        @keyframes growPizza {
+            0% { transform: scale(0.1) rotate(-45deg); border-radius: 50% 50% 0 50%; opacity: 0; }
+            30% { transform: scale(0.4) rotate(0deg); border-radius: 50% 50% 0 50%; opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); border-radius: 50%; opacity: 1; }
+        }
+        @keyframes fadeInLogo { to { opacity: 1; } }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
+
+    <div id="pwa-splash" class="fixed inset-0 bg-[#f3e5d0] z-[9999] flex flex-col items-center justify-center">
+        <div class="pizza-anim-container">
+            <div class="pizza-outline"></div>
+            <div class="pizza-grow"></div>
+            <div class="pizza-logo-fade">
+                <img src="icons/icon-192.png" alt="Logo" class="w-24 h-24 object-contain">
+            </div>
+        </div>
+        <h1 class="italic-black text-3xl tracking-tight text-[#4a2311]">Slice Dog</h1>
+        <p class="text-[10px] font-bold tracking-[0.3em] uppercase opacity-60 text-[#4a2311]">Cargando Experiencia...</p>
+    </div>
 
     <header class="w-full max-w-md text-center py-10">
         <h1 class="italic-black text-2xl tracking-tight">Slice Dog Club</h1>
@@ -231,13 +262,24 @@
             }
         }
 
+        // Lógica de inicio con animación
         window.onload = () => { 
-            if(!user) document.getElementById('register-modal').classList.remove('hidden'); 
-            else renderApp(); 
-            lucide.createIcons(); 
+            const splash = document.getElementById('pwa-splash');
+            
+            // Esperamos a que la animación termine (3 segundos) para ocultar el splash
+            setTimeout(() => {
+                splash.style.opacity = '0';
+                
+                // Una vez que es invisible, lo quitamos y mostramos la App o el Registro
+                setTimeout(() => {
+                    splash.remove();
+                    if(!user) document.getElementById('register-modal').classList.remove('hidden'); 
+                    else renderApp(); 
+                    lucide.createIcons(); 
+                }, 800);
+            }, 3200);
         };
 
-        // Registro del Service Worker para PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
