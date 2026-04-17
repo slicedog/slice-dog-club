@@ -35,7 +35,7 @@
         
         #reader { width: 100% !important; border: none !important; border-radius: 2rem; overflow: hidden; }
 
-        /* --- ESTILOS SPLASH ANIMADO V2 --- */
+        /* --- SPLASH ANIMADO V2 --- */
         #pwa-splash { transition: opacity 0.6s ease-in-out; pointer-events: none; }
         .pizza-loader { position: relative; display: flex; align-items: center; justify-content: center; width: 150px; height: 150px; }
         .pizza-icon-anim { color: var(--sd-mustard); width: 80px; height: 80px; transform: scale(0); animation: growAndRotate 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
@@ -129,13 +129,30 @@
             maxStamps: 10,
             storageKey: "slice_dog_v8_final",
             qrPrefix: "SD-",
-            scriptURL: "https://script.google.com/macros/s/AKfycbxhaCU_k21Dizx-KURzedFFJIecQoA-oYaHzDdFzUdEHrrB7ylpTac2twghvOufy9vG/exec"
+            scriptURL: "TU_SCRIPT_URL_AQUI"
         };
 
         let user = JSON.parse(localStorage.getItem(CONFIG.storageKey));
         let html5QrCode;
 
         function toggleRules(show) { document.getElementById('rules-modal').classList.toggle('hidden', !show); }
+
+        // --- FUNCIÓN DE SINCRONIZACIÓN HÍBRIDA (NEXUS) ---
+        async function syncWithServer() {
+            if(!user) return;
+            try {
+                const checkUrl = `${CONFIG.scriptURL}?checkEmail=${encodeURIComponent(user.email)}`;
+                const response = await fetch(checkUrl);
+                const cloudData = await response.json();
+
+                if (cloudData.exists && cloudData.stamps !== user.stamps) {
+                    console.log("Sincronizando con la nube...");
+                    user.stamps = cloudData.stamps;
+                    localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
+                    renderApp();
+                }
+            } catch(e) { console.log("Servidor ocupado, usando datos locales."); }
+        }
 
         async function registerUser() {
             const name = document.getElementById('reg-name').value.trim();
@@ -144,16 +161,16 @@
             if(!name || !email || !whatsapp) return alert("Completa todos los datos");
 
             const btn = document.getElementById('btn-register');
-            btn.innerText = "Sincronizando...";
+            btn.innerText = "Conectando...";
             btn.disabled = true;
 
             try {
-                const checkUrl = `${CONFIG.scriptURL}?checkEmail=${encodeURIComponent(email)}&checkPhone=${encodeURIComponent(whatsapp)}`;
+                const checkUrl = `${CONFIG.scriptURL}?checkEmail=${encodeURIComponent(email)}`;
                 const response = await fetch(checkUrl);
                 const checkResult = await response.json();
 
                 if (checkResult.exists) {
-                    alert(`¡Hola de nuevo! Recuperamos tu tarjeta con ${checkResult.stamps} sellos.`);
+                    alert(`¡Bienvenido de vuelta!`);
                     user = { name: checkResult.name, email: checkResult.email, whatsapp: checkResult.whatsapp, stamps: checkResult.stamps };
                 } else {
                     await fetch(CONFIG.scriptURL, {
@@ -175,7 +192,7 @@
                     mode: 'no-cors',
                     body: JSON.stringify({ nombre: user.name, email: user.email, whatsapp: user.whatsapp, sellos: user.stamps, accion: action })
                 });
-            } catch (e) { console.log("Error de sincronización silenciosa"); }
+            } catch (e) { console.log("Sync diferido."); }
         }
 
         function renderApp() {
@@ -199,12 +216,11 @@
                 document.getElementById('btn-scan').classList.add('hidden');
                 document.getElementById('btn-reward').classList.remove('hidden');
                 document.getElementById('btn-share').classList.remove('hidden');
-            } else if (user.stamps === 9) {
-                title.innerHTML = "¡CUIDADO! <br><span class='text-[var(--sd-mustard)]'>¡SOLO FALTA UNA!</span>";
-                title.classList.add('scale-110');
             } else {
                 title.innerText = `FALTAN ${10 - user.stamps} PARA PREMIO`;
-                title.classList.remove('scale-110');
+                document.getElementById('btn-scan').classList.remove('hidden');
+                document.getElementById('btn-reward').classList.add('hidden');
+                document.getElementById('btn-share').classList.add('hidden');
             }
             lucide.createIcons();
         }
@@ -224,8 +240,7 @@
                         user.stamps++;
                         localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
                         btn.disabled = true;
-                        btn.innerHTML = `<i data-lucide="clock"></i> Procesando...`;
-                        lucide.createIcons();
+                        btn.innerHTML = `Validando...`;
                         syncStamp("NUEVO_SELLO");
                         renderApp();
                         setTimeout(() => {
@@ -241,7 +256,7 @@
         function closeScanner() { if(html5QrCode) html5QrCode.stop(); document.getElementById('scanner-modal').classList.add('hidden'); }
 
         function redeemReward() {
-            if (confirm("¿Confirmas el canje de tu pizza gratis? La tarjeta se reiniciará.")) {
+            if (confirm("¿Confirmas el canje? La tarjeta se reiniciará.")) {
                 user.stamps = 0;
                 localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
                 syncStamp("CANJE_PREMIO");
@@ -251,40 +266,32 @@
 
         function shareAchievement() {
             const shareData = {
-                title: '¡Pizza Gratis en Slice Dog!',
-                text: `¡Acabo de completar mis 10 sellos y gané una PIZZA GRATIS en Slice Dog Club! 🍕 Únete tú también y empieza a ganar.`,
+                title: '¡Pizza Gratis!',
+                text: `¡Gané una PIZZA GRATIS en Slice Dog Club! 🍕`,
                 url: window.location.href
             };
-            if (navigator.share) {
-                navigator.share(shareData).catch((error) => console.log('Error al compartir', error));
-            } else {
-                alert("¡Tómale una captura a esta pantalla y presúmela en Instagram etiquetando a @SliceDog!");
-            }
+            if (navigator.share) navigator.share(shareData);
+            else alert("¡Tómale captura y etiquétanos!");
         }
 
-        // Lógica de Splash Screen
         window.onload = () => { 
-            lucide.createIcons(); // Cargamos iconos del splash primero
+            lucide.createIcons();
             const splash = document.getElementById('pwa-splash');
             
             setTimeout(() => {
                 splash.style.opacity = '0';
-                setTimeout(() => {
+                setTimeout(async () => {
                     splash.remove();
-                    if(!user) document.getElementById('register-modal').classList.remove('hidden'); 
-                    else renderApp(); 
+                    if(!user) {
+                        document.getElementById('register-modal').classList.remove('hidden'); 
+                    } else {
+                        renderApp(); 
+                        await syncWithServer(); // <--- Aquí la App pregunta al Excel si hay cambios
+                    }
                     lucide.createIcons(); 
                 }, 600);
-            }, 2200); 
+            }, 2000); 
         };
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker registrado'))
-                    .catch(err => console.log('Error al registrar SW', err));
-            });
-        }
     </script>
 </body>
 </html>
