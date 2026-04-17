@@ -3,14 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slice Dog | Club de Fidelidad</title>
+    <title>TEST | Slice Dog Club</title>
     
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#e9a124">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="icons/icon-192.png">
-
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -23,74 +17,55 @@
         .stamp-active { background: linear-gradient(135deg, var(--sd-mustard) 0%, #d48a1a 100%); color: white !important; border: none !important; transform: scale(1.05); }
         .italic-black { font-weight: 900; font-style: italic; text-transform: uppercase; }
         
+        /* ESTILOS CARRUSEL DE CUPONES */
+        .coupon-card {
+            min-width: 240px;
+            background: white;
+            border: 2px dashed var(--sd-mustard);
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            position: relative;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+            snap-align: center;
+        }
+        .coupon-card::before, .coupon-card::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 20px;
+            height: 20px;
+            background: var(--sd-bg);
+            border-radius: 50%;
+            transform: translateY(-50%);
+        }
+        .coupon-card::before { left: -12px; }
+        .coupon-card::after { right: -12px; }
+
         .sd-input { width: 100%; padding: 1.25rem; background-color: #f9f9f9; border: 2px solid transparent; border-radius: 1.2rem; font-weight: 700; text-align: center; outline: none; margin-bottom: 0.75rem; }
-        .sd-input:focus { border-color: var(--sd-mustard); background-color: white; }
-        
-        @keyframes pulse-gold {
-            0% { box-shadow: 0 0 0 0 rgba(233, 161, 36, 0.7); }
-            70% { box-shadow: 0 0 0 15px rgba(233, 161, 36, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(233, 161, 36, 0); }
-        }
-        .pulse-target { animation: pulse-gold 2s infinite; border: 3px solid var(--sd-mustard) !important; }
-        
         #reader { width: 100% !important; border: none !important; border-radius: 2rem; overflow: hidden; }
-
-        /* --- SPLASH ANIMADO V2 --- */
-        #pwa-splash { transition: opacity 0.6s ease-in-out; pointer-events: none; }
-        .pizza-loader { position: relative; display: flex; align-items: center; justify-content: center; width: 150px; height: 150px; }
-        .pizza-icon-anim { color: var(--sd-mustard); width: 80px; height: 80px; transform: scale(0); animation: growAndRotate 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-        .pizza-glow { position: absolute; width: 100px; height: 100px; background: var(--sd-mustard); filter: blur(40px); border-radius: 50%; opacity: 0; animation: glowPulse 1.5s 0.5s infinite alternate; }
-
-        @keyframes growAndRotate {
-            0% { transform: scale(0) rotate(-180deg); opacity: 0; }
-            100% { transform: scale(1.5) rotate(0deg); opacity: 1; }
-        }
-        @keyframes glowPulse {
-            from { opacity: 0.2; transform: scale(0.8); }
-            to { opacity: 0.5; transform: scale(1.2); }
-        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
 
-    <div id="pwa-splash" class="fixed inset-0 bg-[#f3e5d0] z-[9999] flex flex-col items-center justify-center">
-        <div class="pizza-loader">
-            <div class="pizza-glow"></div>
-            <div class="pizza-icon-anim">
-                <i data-lucide="pizza" style="width: 100%; height: 100%;"></i>
-            </div>
-        </div>
-        <h1 class="italic-black text-3xl tracking-tight text-[#4a2311] mt-8">Slice Dog</h1>
-        <div class="flex items-center gap-2 opacity-40 mt-4">
-            <div class="w-2 h-2 bg-[#4a2311] rounded-full animate-bounce"></div>
-            <div class="w-2 h-2 bg-[#4a2311] rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-            <div class="w-2 h-2 bg-[#4a2311] rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-        </div>
-    </div>
-
-    <header class="w-full max-w-md text-center py-10">
-        <h1 class="italic-black text-2xl tracking-tight">Slice Dog Club</h1>
-        <p class="text-[10px] font-bold tracking-[0.3em] uppercase opacity-70">Loyalty Experience</p>
+    <header class="w-full max-w-md text-center py-6">
+        <h1 class="italic-black text-2xl tracking-tight">Slice Dog Club <span class="text-red-500">[TEST]</span></h1>
     </header>
 
-    <main id="main-ui" class="w-full max-w-md stamp-card overflow-hidden hidden">
-        <div class="p-8 text-center">
+    <main id="main-ui" class="w-full max-w-md hidden">
+        <div class="stamp-card p-8 text-center mb-6">
             <p id="user-greeting" class="text-[10px] font-black uppercase text-neutral-400 mb-1"></p>
-            <h2 id="status-title" class="italic-black text-2xl mb-8 leading-none transition-all duration-500"></h2>
-            
+            <h2 id="status-title" class="italic-black text-2xl mb-8 leading-none"></h2>
             <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-10"></div>
             
-            <button id="btn-scan" onclick="openScanner()" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg mb-4 transition-all duration-300">
+            <button id="btn-scan" onclick="openScanner()" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg">
                 <i data-lucide="qr-code"></i> ¡Sellar Compra!
             </button>
-            
-            <button id="btn-reward" onclick="redeemReward()" class="hidden w-full py-5 bg-red-700 text-white rounded-[1.8rem] italic-black mb-3">Canjear mi Pizza Gratis</button>
-            
-            <button id="btn-share" onclick="shareAchievement()" class="hidden w-full py-4 border-2 border-[var(--sd-mustard)] text-[var(--sd-mustard)] rounded-[1.8rem] font-bold flex items-center justify-center gap-2 mb-4 hover:bg-orange-50 transition-colors">
-                <i data-lucide="share-2" class="w-5 h-5"></i> ¡Presumir mi premio!
-            </button>
-            
-            <button onclick="toggleRules(true)" class="text-[10px] font-bold uppercase tracking-widest opacity-40">Ver Reglas del Club</button>
+        </div>
+
+        <div id="section-rewards" class="hidden w-full overflow-hidden">
+            <h3 class="text-[10px] font-black uppercase text-neutral-400 mb-3 px-2">Mis Regalos Disponibles</h3>
+            <div id="rewards-carousel" class="flex gap-4 overflow-x-auto pb-6 px-2 snap-x scrollbar-hide">
+                </div>
         </div>
     </main>
 
@@ -104,19 +79,6 @@
         </div>
     </div>
 
-    <div id="rules-modal" class="fixed inset-0 bg-black/90 z-[300] flex items-center justify-center p-6 hidden">
-        <div class="bg-white w-full max-w-sm rounded-[2.5rem] p-8 max-h-[80vh] overflow-y-auto">
-            <h3 class="italic-black text-xl mb-4 text-center">Reglas del Club 🍕</h3>
-            <div class="rules-content space-y-3 text-neutral-600">
-                <p>1. <b>Un sello por compra:</b> Se otorga un sello por cada compra de una pizza Mediana o Familiar.</p>
-                <p>2. <b>El Premio:</b> Al completar 10 sellos, obtienes una pizza gratis.</p>
-                <p>3. <b>Sello de Bienvenida:</b> Recibes tu primer sello gratis al registrarte.</p>
-                <p>4. <b>Seguridad:</b> Los sellos son validados mediante código QR en tienda.</p>
-            </div>
-            <button onclick="toggleRules(false)" class="w-full mt-6 py-4 bg-neutral-100 rounded-2xl font-black text-[10px] uppercase">Cerrar</button>
-        </div>
-    </div>
-
     <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[200] flex flex-col items-center justify-center p-6 hidden">
         <div class="w-full max-w-sm bg-white rounded-[3rem] p-4 relative">
             <div id="reader"></div>
@@ -127,171 +89,112 @@
     <script>
         const CONFIG = {
             maxStamps: 10,
-            storageKey: "slice_dog_v8_final",
-            qrPrefix: "SD-",
+            storageKey: "slice_dog_test_v1",
             scriptURL: "https://script.google.com/macros/s/AKfycbxBt1k6YfvWM45N8GYfalckex_iG4gGIr9sarAN3vzJ5RY6ismgGIut8fGEMOXu374P/exec"
         };
 
         let user = JSON.parse(localStorage.getItem(CONFIG.storageKey));
         let html5QrCode;
 
-        function toggleRules(show) { document.getElementById('rules-modal').classList.toggle('hidden', !show); }
-
-        // --- FUNCIÓN DE SINCRONIZACIÓN HÍBRIDA (NEXUS) ---
         async function syncWithServer() {
             if(!user) return;
             try {
-                const checkUrl = `${CONFIG.scriptURL}?checkEmail=${encodeURIComponent(user.email)}`;
-                const response = await fetch(checkUrl);
+                const response = await fetch(`${CONFIG.scriptURL}?checkEmail=${encodeURIComponent(user.email)}`);
                 const cloudData = await response.json();
-
-                if (cloudData.exists && cloudData.stamps !== user.stamps) {
-                    console.log("Sincronizando con la nube...");
-                    user.stamps = cloudData.stamps;
+                if (cloudData.exists) {
+                    user = { ...user, ...cloudData };
                     localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
                     renderApp();
                 }
-            } catch(e) { console.log("Servidor ocupado, usando datos locales."); }
+            } catch(e) { console.log("Error sync"); }
         }
 
         async function registerUser() {
             const name = document.getElementById('reg-name').value.trim();
             const email = document.getElementById('reg-email').value.trim();
             const whatsapp = document.getElementById('reg-whatsapp').value.trim();
-            if(!name || !email || !whatsapp) return alert("Completa todos los datos");
-
-            const btn = document.getElementById('btn-register');
-            btn.innerText = "Conectando...";
-            btn.disabled = true;
+            if(!name || !email || !whatsapp) return alert("Faltan datos");
 
             try {
-                const checkUrl = `${CONFIG.scriptURL}?checkEmail=${encodeURIComponent(email)}`;
-                const response = await fetch(checkUrl);
-                const checkResult = await response.json();
-
-                if (checkResult.exists) {
-                    alert(`¡Bienvenido de vuelta!`);
-                    user = { name: checkResult.name, email: checkResult.email, whatsapp: checkResult.whatsapp, stamps: checkResult.stamps };
+                const check = await fetch(`${CONFIG.scriptURL}?checkEmail=${encodeURIComponent(email)}`);
+                const res = await check.json();
+                
+                if (res.exists) {
+                    user = res;
                 } else {
                     await fetch(CONFIG.scriptURL, {
                         method: 'POST',
                         mode: 'no-cors',
                         body: JSON.stringify({ nombre: name, email: email, whatsapp: whatsapp, sellos: 1, accion: "REGISTRO_NUEVO" })
                     });
-                    user = { name, email, whatsapp, stamps: 1 };
+                    user = { name, email, whatsapp, stamps: 1, cupon_bienvenida: "LISTO" };
                 }
                 localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
                 location.reload();
-            } catch(e) { alert("Error de conexión"); btn.innerText = "Empezar Ahora"; btn.disabled = false; }
-        }
-
-        async function syncStamp(action) {
-            try {
-                await fetch(CONFIG.scriptURL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify({ nombre: user.name, email: user.email, whatsapp: user.whatsapp, sellos: user.stamps, accion: action })
-                });
-            } catch (e) { console.log("Sync diferido."); }
+            } catch(e) { alert("Error"); }
         }
 
         function renderApp() {
             document.getElementById('main-ui').classList.remove('hidden');
             document.getElementById('user-greeting').innerText = `HOLA, ${user.name} 🍕`;
+            
+            // Render Sellos
             const grid = document.getElementById('stamps-grid');
             grid.innerHTML = '';
-            
             for (let i = 0; i < CONFIG.maxStamps; i++) {
                 const active = i < user.stamps;
-                const isLastOne = (i === 9 && user.stamps === 9);
                 const slot = document.createElement('div');
-                slot.className = `aspect-square rounded-2xl flex items-center justify-center border-2 transition-all duration-500 ${active ? 'stamp-active' : 'border-dashed border-neutral-200 bg-neutral-50'} ${isLastOne ? 'pulse-target' : ''}`;
-                slot.innerHTML = active ? '<i data-lucide="pizza"></i>' : (i === 9 ? '<i data-lucide="gift" class="opacity-20"></i>' : '');
+                slot.className = `aspect-square rounded-2xl flex items-center justify-center border-2 ${active ? 'stamp-active' : 'border-dashed border-neutral-200 bg-neutral-50'}`;
+                slot.innerHTML = active ? '<i data-lucide="pizza"></i>' : '';
                 grid.appendChild(slot);
             }
+            document.getElementById('status-title').innerText = `FALTAN ${10 - user.stamps} PARA PREMIO`;
 
-            const title = document.getElementById('status-title');
-            if(user.stamps >= 10) {
-                title.innerHTML = "¡LISTO! <br><span class='text-[var(--sd-mustard)] text-3xl'>PIZZA GRATIS</span>";
-                document.getElementById('btn-scan').classList.add('hidden');
-                document.getElementById('btn-reward').classList.remove('hidden');
-                document.getElementById('btn-share').classList.remove('hidden');
-            } else {
-                title.innerText = `FALTAN ${10 - user.stamps} PARA PREMIO`;
-                document.getElementById('btn-scan').classList.remove('hidden');
-                document.getElementById('btn-reward').classList.add('hidden');
-                document.getElementById('btn-share').classList.add('hidden');
-            }
-            lucide.createIcons();
-        }
+            // Render Cupones (CARRUSEL)
+            const rewardsSection = document.getElementById('section-rewards');
+            const carousel = document.getElementById('rewards-carousel');
+            carousel.innerHTML = '';
+            let hasRewards = false;
 
-        function openScanner() {
-            const btn = document.getElementById('btn-scan');
-            if(btn.disabled) return;
-            document.getElementById('scanner-modal').classList.remove('hidden');
-            html5QrCode = new Html5Qrcode("reader");
-            const today = new Date();
-            const validCode = `${CONFIG.qrPrefix}${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+            const cupones = [
+                { id: 'bienvenida', estado: user.cupon_bienvenida, titulo: '🎁 BIENVENIDA', premio: 'Bebida Gratis' },
+                { id: 'cumple', estado: user.cupon_cumple, titulo: '🎂 CUMPLEAÑOS', premio: 'Rebanada Gratis' },
+                { id: 'extra', estado: user.cupon_extra, titulo: '🍕 EXTRAÑAMOS', premio: '20% Descuento' }
+            ];
 
-            html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, (text) => {
-                if(text === validCode) {
-                    html5QrCode.stop().then(() => {
-                        document.getElementById('scanner-modal').classList.add('hidden');
-                        user.stamps++;
-                        localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
-                        btn.disabled = true;
-                        btn.innerHTML = `Validando...`;
-                        syncStamp("NUEVO_SELLO");
-                        renderApp();
-                        setTimeout(() => {
-                            btn.disabled = false;
-                            btn.innerHTML = `<i data-lucide="qr-code"></i> ¡Sellar Compra!`;
-                            lucide.createIcons();
-                        }, 30000); 
-                    });
+            cupones.forEach(c => {
+                if (c.estado === "LISTO") {
+                    hasRewards = true;
+                    const card = document.createElement('div');
+                    card.className = 'coupon-card text-center';
+                    card.innerHTML = `
+                        <p class="text-[9px] font-bold uppercase text-orange-500 mb-1">${c.titulo}</p>
+                        <h4 class="italic-black text-lg mb-3">${c.premio}</h4>
+                        <button onclick="alert('Próximamente: Código de Canje')" class="w-full py-2 bg-black text-white rounded-xl text-[10px] font-black uppercase">Canjear</button>
+                    `;
+                    carousel.appendChild(card);
                 }
-            }).catch(() => alert("Error de cámara"));
-        }
+            });
 
-        function closeScanner() { if(html5QrCode) html5QrCode.stop(); document.getElementById('scanner-modal').classList.add('hidden'); }
-
-        function redeemReward() {
-            if (confirm("¿Confirmas el canje? La tarjeta se reiniciará.")) {
-                user.stamps = 0;
-                localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
-                syncStamp("CANJE_PREMIO");
-                location.reload();
-            }
-        }
-
-        function shareAchievement() {
-            const shareData = {
-                title: '¡Pizza Gratis!',
-                text: `¡Gané una PIZZA GRATIS en Slice Dog Club! 🍕`,
-                url: window.location.href
-            };
-            if (navigator.share) navigator.share(shareData);
-            else alert("¡Tómale captura y etiquétanos!");
+            hasRewards ? rewardsSection.classList.remove('hidden') : rewardsSection.classList.add('hidden');
+            lucide.createIcons();
         }
 
         window.onload = () => { 
+            if(!user) document.getElementById('register-modal').classList.remove('hidden');
+            else { renderApp(); syncWithServer(); }
             lucide.createIcons();
-            const splash = document.getElementById('pwa-splash');
-            
-            setTimeout(() => {
-                splash.style.opacity = '0';
-                setTimeout(async () => {
-                    splash.remove();
-                    if(!user) {
-                        document.getElementById('register-modal').classList.remove('hidden'); 
-                    } else {
-                        renderApp(); 
-                        await syncWithServer(); // <--- Aquí la App pregunta al Excel si hay cambios
-                    }
-                    lucide.createIcons(); 
-                }, 600);
-            }, 2000); 
         };
+
+        function openScanner() {
+            document.getElementById('scanner-modal').classList.remove('hidden');
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
+                alert("QR detectado: " + text);
+                closeScanner();
+            }).catch(() => alert("Error cámara"));
+        }
+        function closeScanner() { if(html5QrCode) html5QrCode.stop(); document.getElementById('scanner-modal').classList.add('hidden'); }
     </script>
 </body>
 </html>
