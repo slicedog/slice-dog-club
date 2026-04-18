@@ -27,10 +27,10 @@
         <div class="bg-white rounded-[2.5rem] p-8 text-center shadow-xl mb-6">
             <p id="user-greeting" class="text-[10px] font-black uppercase text-neutral-400 mb-1"></p>
             <h2 id="status-title" class="italic-black text-2xl mb-8 leading-none"></h2>
+            
             <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-10"></div>
-            <button onclick="openScanner()" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg">
-                <i data-lucide="qr-code"></i> ¡SOLICITAR SELLO!
-            </button>
+            
+            <div id="main-action-container"></div>
         </div>
 
         <div id="section-rewards" class="hidden w-full overflow-hidden">
@@ -58,7 +58,7 @@
 
     <script>
         const CONFIG = {
-            storageKey: "sd_club_final_test",
+            storageKey: "sd_club_test_v4", // Cambio de clave para forzar limpieza
             scriptURL: "https://script.google.com/macros/s/AKfycbxBt1k6YfvWM45N8GYfalckex_iG4gGIr9sarAN3vzJ5RY6ismgGIut8fGEMOXu374P/exec"
         };
 
@@ -70,11 +70,17 @@
             try {
                 const res = await fetch(`${CONFIG.scriptURL}?checkEmail=${encodeURIComponent(user.email)}`);
                 const data = await res.json();
-                if (data.exists) {
-                    user = { ...user, ...data };
-                    localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
-                    renderApp();
+                
+                // REPARACIÓN 4: Si el usuario fue borrado del Excel
+                if (!data.exists) {
+                    localStorage.removeItem(CONFIG.storageKey);
+                    location.reload();
+                    return;
                 }
+                
+                user = { ...user, ...data };
+                localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
+                renderApp();
             } catch(e) { console.log("Sync Error"); }
         }
 
@@ -82,17 +88,59 @@
             document.getElementById('main-ui').classList.remove('hidden');
             document.getElementById('user-greeting').innerText = `HOLA, ${user.name} 🍕`;
             
+            // REPARACIÓN 2: Límite matemático a 10
+            const currentStamps = Math.min(user.stamps || 0, 10);
+            
+            // Título Dinámico
+            if (currentStamps >= 10) {
+                document.getElementById('status-title').innerText = "¡PREMIO DESBLOQUEADO!";
+                document.getElementById('status-title').className = "italic-black text-2xl mb-8 leading-none text-orange-600 animate-pulse";
+            } else {
+                document.getElementById('status-title').innerText = `FALTAN ${10 - currentStamps} PARA PREMIO`;
+                document.getElementById('status-title').className = "italic-black text-2xl mb-8 leading-none text-[var(--sd-dark)]";
+            }
+
+            // REPARACIÓN 1: El ícono Ghost (Regalo en el índice 9)
             const grid = document.getElementById('stamps-grid');
             grid.innerHTML = '';
-            for(let i=0; i<10; i++){
-                const active = i < user.stamps;
+            for(let i=0; i<10; i++) {
+                const active = i < currentStamps;
                 const slot = document.createElement('div');
-                slot.className = `aspect-square rounded-2xl flex items-center justify-center border-2 ${active ? 'stamp-active' : 'border-dashed border-neutral-200 bg-neutral-50'}`;
-                slot.innerHTML = active ? '<i data-lucide="pizza"></i>' : '';
+                slot.className = `aspect-square rounded-2xl flex items-center justify-center border-2 ${active ? 'stamp-active' : 'border-dashed border-neutral-300 bg-neutral-50'}`;
+                
+                if (i === 9) {
+                    // Si es el último, ponemos el regalo
+                    slot.innerHTML = active ? '<i data-lucide="gift" class="text-white"></i>' : '<i data-lucide="gift" class="text-neutral-300"></i>';
+                } else {
+                    // Los demás son pizzas
+                    slot.innerHTML = active ? '<i data-lucide="pizza"></i>' : '';
+                }
                 grid.appendChild(slot);
             }
-            document.getElementById('status-title').innerText = `FALTAN ${10 - user.stamps} PARA PREMIO`;
 
+            // Control del Botón Principal
+            const btnContainer = document.getElementById('main-action-container');
+            const isPendingBoard = user.current_pin && user.active_coupon === "TABLERO";
+            
+            if (currentStamps >= 10) {
+                // REPARACIÓN 6: Botón de Canjear Tablero
+                btnContainer.innerHTML = `
+                    <button id="btn-scan" onclick="claimBoardPrize()" 
+                        class="w-full py-5 ${isPendingBoard ? 'bg-neutral-200 text-neutral-500' : 'bg-black text-white'} rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg"
+                        ${isPendingBoard ? 'disabled' : ''}>
+                        <i data-lucide="gift"></i> ${isPendingBoard ? `CÓDIGO: ${user.current_pin}` : '¡CANJEAR PREMIO!'}
+                    </button>
+                `;
+            } else {
+                // Botón normal de sellar
+                btnContainer.innerHTML = `
+                    <button id="btn-scan" onclick="openScanner()" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg transition-all">
+                        <i data-lucide="qr-code"></i> ¡SOLICITAR SELLO!
+                    </button>
+                `;
+            }
+
+            // Render de Cupones (Sin cambios)
             const carousel = document.getElementById('rewards-carousel');
             carousel.innerHTML = '';
             let hasRewards = false;
@@ -124,37 +172,21 @@
             lucide.createIcons();
         }
 
-        function openScanner() {
-            document.getElementById('scanner-modal').classList.remove('hidden');
-            html5QrCode = new Html5Qrcode("reader");
-            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, 
-                async (text) => {
-                    // VALIDACIÓN: Acepta cualquier QR de Staff que empiece con "SD-"
-                    if(text.startsWith("SD-") || text === "SLICE_DOG_STAMP") {
-                        await html5QrCode.stop();
-                        document.getElementById('scanner-modal').classList.add('hidden');
-                        addStampToServer();
-                    } else {
-                        alert("Código no reconocido.");
-                    }
-                }
-            ).catch(err => alert("Error cámara: " + err));
-        }
+        // REPARACIÓN 6: Función especial para canjear el tablero lleno
+        async function claimBoardPrize() {
+            const randomPin = Math.floor(100 + Math.random() * 900);
+            if (confirm(`¡Has completado tus 10 sellos!\n\n¿Quieres canjear tu premio ahora?\nDicta el código ${randomPin} al personal.`)) {
+                user.stamps = 0; // Reinicia el tablero visualmente
+                user.current_pin = randomPin;
+                user.active_coupon = "TABLERO";
+                localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
+                renderApp();
 
-        async function addStampToServer() {
-            // Actualización visual inmediata para el cliente
-            user.stamps = (user.stamps || 0) + 1;
-            renderApp();
-            
-            try {
                 await fetch(CONFIG.scriptURL, {
                     method: 'POST', mode: 'no-cors',
-                    body: JSON.stringify({ accion: "NUEVO_SELLO", email: user.email })
+                    body: JSON.stringify({ accion: "CANJEAR_TABLERO", email: user.email, pin: randomPin })
                 });
-                localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
-                alert("¡Sello añadido! Disfruta tu pizza.");
-                syncWithServer();
-            } catch(e) { alert("Error al guardar en la nube."); }
+            }
         }
 
         async function requestPin(cuponId) {
@@ -172,6 +204,47 @@
             }
         }
 
+        function openScanner() {
+            document.getElementById('scanner-modal').classList.remove('hidden');
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, 
+                async (text) => {
+                    if(text.startsWith("SD-") || text === "SLICE_DOG_STAMP") {
+                        await html5QrCode.stop();
+                        document.getElementById('scanner-modal').classList.add('hidden');
+                        
+                        // REPARACIÓN 3: Bloquear el botón y mostrar "Validando"
+                        const btn = document.getElementById('btn-scan');
+                        btn.disabled = true;
+                        btn.classList.add('opacity-50');
+                        btn.innerHTML = `<i data-lucide="loader" class="animate-spin"></i> VALIDANDO...`;
+                        lucide.createIcons();
+                        
+                        addStampToServer();
+                    } else {
+                        alert("Código no reconocido.");
+                    }
+                }
+            ).catch(err => alert("Error cámara: " + err));
+        }
+
+        async function addStampToServer() {
+            // Sube el sello visualmente
+            user.stamps = (user.stamps || 0) + 1;
+            renderApp();
+            
+            try {
+                await fetch(CONFIG.scriptURL, {
+                    method: 'POST', mode: 'no-cors',
+                    body: JSON.stringify({ accion: "NUEVO_SELLO", email: user.email })
+                });
+                localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
+                syncWithServer();
+            } catch(e) { 
+                alert("Error al conectar. El sello se guardó localmente."); 
+            }
+        }
+
         function closeScanner() {
             if(html5QrCode) html5QrCode.stop().then(() => { document.getElementById('scanner-modal').classList.add('hidden'); });
         }
@@ -181,6 +254,8 @@
             const email = document.getElementById('reg-email').value;
             const wa = document.getElementById('reg-whatsapp').value;
             if(!name || !email || !wa) return alert("Faltan datos");
+
+            document.querySelector('#register-modal button').innerText = "Creando cuenta...";
 
             await fetch(CONFIG.scriptURL, {
                 method: 'POST', mode: 'no-cors',
