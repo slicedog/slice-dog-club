@@ -3,18 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TEST | Slice Dog Club</title>
+    <title>TEST V1.4 | Slice Dog Club</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         :root { --sd-mustard: #e9a124; --sd-dark: #4a2311; --sd-bg: #f3e5d0; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); color: var(--sd-dark); margin: 0; overflow-x: hidden; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); color: var(--sd-dark); margin: 0; }
         .italic-black { font-weight: 900; font-style: italic; text-transform: uppercase; }
         .stamp-active { background: linear-gradient(135deg, var(--sd-mustard) 0%, #d48a1a 100%); color: white; border: none; }
         .coupon-card { min-width: 260px; background: white; border: 2px dashed var(--sd-mustard); border-radius: 1.5rem; padding: 1.5rem; position: relative; snap-align: center; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
         #reader { width: 100% !important; border: none !important; border-radius: 2rem; overflow: hidden; }
+        
+        /* Estado de carga para el botón */
+        .btn-loading { pointer-events: none; opacity: 0.6; grayscale: 1; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
@@ -27,16 +31,30 @@
         <div class="bg-white rounded-[2.5rem] p-8 text-center shadow-xl mb-6">
             <p id="user-greeting" class="text-[10px] font-black uppercase text-neutral-400 mb-1"></p>
             <h2 id="status-title" class="italic-black text-2xl mb-8 leading-none"></h2>
-            
             <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-10"></div>
             
-            <div id="main-action-container"></div>
+            <div id="main-action-container">
+                </div>
         </div>
 
-        <div id="section-rewards" class="hidden w-full overflow-hidden">
-            <h3 class="text-[10px] font-black uppercase text-neutral-400 mb-3 px-2">Mis Regalos</h3>
+        <div id="section-rewards" class="hidden w-full overflow-hidden mb-8">
+            <h3 class="text-[10px] font-black uppercase text-neutral-400 mb-3 px-2">Mis Regalos Disponibles</h3>
             <div id="rewards-carousel" class="flex gap-4 overflow-x-auto pb-6 px-2 snap-x scrollbar-hide"></div>
         </div>
+
+        <section class="w-full px-2 mb-10">
+            <div class="bg-white/50 rounded-2xl p-6 border border-white">
+                <h4 class="text-[10px] font-black mb-4 uppercase text-neutral-500 flex items-center gap-2">
+                    <i data-lucide="info" class="w-3"></i> Reglas del Club
+                </h4>
+                <ul class="text-[11px] space-y-3 text-neutral-600 font-medium">
+                    <li class="flex gap-2"><span>•</span> 1 sello por cada compra mínima de $100.</li>
+                    <li class="flex gap-2"><span>•</span> Al completar 10 sellos, tu siguiente pizza es gratis.</li>
+                    <li class="flex gap-2"><span>•</span> Los cupones de bienvenida expiran en 30 días.</li>
+                    <li class="flex gap-2"><span>•</span> No acumulable con otras promociones.</li>
+                </ul>
+            </div>
+        </section>
     </main>
 
     <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[200] flex flex-col items-center justify-center p-6 hidden">
@@ -47,104 +65,90 @@
     </div>
 
     <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
-        <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-4 border-[var(--sd-mustard)]">
-            <h2 class="italic-black text-2xl mb-6">Únete al Club</h2>
-            <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-xl font-bold text-center outline-none">
-            <input type="email" id="reg-email" placeholder="Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-xl font-bold text-center outline-none">
-            <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-xl font-bold text-center outline-none">
-            <button onclick="registerUser()" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black">Empezar</button>
+        <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-4 border-[var(--sd-mustard)] shadow-2xl">
+            <h2 class="italic-black text-2xl mb-6">Bienvenido al <br><span class="text-orange-600">Slice Dog Club</span></h2>
+            <input type="text" id="reg-name" placeholder="¿Cómo te llamas?" class="w-full p-4 mb-3 bg-neutral-100 rounded-xl font-bold text-center outline-none">
+            <input type="email" id="reg-email" placeholder="Tu Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-xl font-bold text-center outline-none">
+            <input type="tel" id="reg-whatsapp" placeholder="Tu WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-xl font-bold text-center outline-none">
+            <button id="btn-register" onclick="registerUser()" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black">¡Unirme Ahora!</button>
         </div>
     </div>
 
     <script>
         const CONFIG = {
-            storageKey: "sd_club_test_v4", // Cambio de clave para forzar limpieza
-            scriptURL: "https://script.google.com/macros/s/AKfycbxBt1k6YfvWM45N8GYfalckex_iG4gGIr9sarAN3vzJ5RY6ismgGIut8fGEMOXu374P/exec"
+            storageKey: "sd_club_test_v1.4", // Nueva clave para limpiar errores
+            scriptURL: "PON_TU_URL_AQUI"
         };
 
         let user = JSON.parse(localStorage.getItem(CONFIG.storageKey));
         let html5QrCode;
+        let isProcessing = false; // LLAVE DE SEGURIDAD PARA EL PUNTO 3
 
         async function syncWithServer() {
-            if(!user) return;
+            if(!user || isProcessing) return;
             try {
                 const res = await fetch(`${CONFIG.scriptURL}?checkEmail=${encodeURIComponent(user.email)}`);
                 const data = await res.json();
-                
-                // REPARACIÓN 4: Si el usuario fue borrado del Excel
-                if (!data.exists) {
-                    localStorage.removeItem(CONFIG.storageKey);
-                    location.reload();
-                    return;
-                }
-                
+                if (!data.exists) { localStorage.removeItem(CONFIG.storageKey); location.reload(); return; }
                 user = { ...user, ...data };
                 localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
                 renderApp();
-            } catch(e) { console.log("Sync Error"); }
+            } catch(e) { console.log("Sync..."); }
         }
 
         function renderApp() {
             document.getElementById('main-ui').classList.remove('hidden');
             document.getElementById('user-greeting').innerText = `HOLA, ${user.name} 🍕`;
             
-            // REPARACIÓN 2: Límite matemático a 10
             const currentStamps = Math.min(user.stamps || 0, 10);
             
-            // Título Dinámico
+            // Título
+            const statusEl = document.getElementById('status-title');
             if (currentStamps >= 10) {
-                document.getElementById('status-title').innerText = "¡PREMIO DESBLOQUEADO!";
-                document.getElementById('status-title').className = "italic-black text-2xl mb-8 leading-none text-orange-600 animate-pulse";
+                statusEl.innerText = "¡PREMIO DESBLOQUEADO!";
+                statusEl.classList.add("text-orange-600", "animate-pulse");
             } else {
-                document.getElementById('status-title').innerText = `FALTAN ${10 - currentStamps} PARA PREMIO`;
-                document.getElementById('status-title').className = "italic-black text-2xl mb-8 leading-none text-[var(--sd-dark)]";
+                statusEl.innerText = `FALTAN ${10 - currentStamps} PARA PREMIO`;
+                statusEl.classList.remove("text-orange-600", "animate-pulse");
             }
 
-            // REPARACIÓN 1: El ícono Ghost (Regalo en el índice 9)
+            // Grid
             const grid = document.getElementById('stamps-grid');
             grid.innerHTML = '';
-            for(let i=0; i<10; i++) {
+            for(let i=0; i<10; i++){
                 const active = i < currentStamps;
                 const slot = document.createElement('div');
-                slot.className = `aspect-square rounded-2xl flex items-center justify-center border-2 ${active ? 'stamp-active' : 'border-dashed border-neutral-300 bg-neutral-50'}`;
-                
+                slot.className = `aspect-square rounded-2xl flex items-center justify-center border-2 ${active ? 'stamp-active' : 'border-dashed border-neutral-300 bg-neutral-50/50'}`;
                 if (i === 9) {
-                    // Si es el último, ponemos el regalo
-                    slot.innerHTML = active ? '<i data-lucide="gift" class="text-white"></i>' : '<i data-lucide="gift" class="text-neutral-300"></i>';
+                    slot.innerHTML = active ? '<i data-lucide="gift"></i>' : '<i data-lucide="gift" class="text-neutral-300"></i>';
                 } else {
-                    // Los demás son pizzas
                     slot.innerHTML = active ? '<i data-lucide="pizza"></i>' : '';
                 }
                 grid.appendChild(slot);
             }
 
-            // Control del Botón Principal
+            // Botón de Acción Principal (Blindado contra spam)
             const btnContainer = document.getElementById('main-action-container');
             const isPendingBoard = user.current_pin && user.active_coupon === "TABLERO";
-            
+
             if (currentStamps >= 10) {
-                // REPARACIÓN 6: Botón de Canjear Tablero
                 btnContainer.innerHTML = `
-                    <button id="btn-scan" onclick="claimBoardPrize()" 
-                        class="w-full py-5 ${isPendingBoard ? 'bg-neutral-200 text-neutral-500' : 'bg-black text-white'} rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg"
-                        ${isPendingBoard ? 'disabled' : ''}>
-                        <i data-lucide="gift"></i> ${isPendingBoard ? `CÓDIGO: ${user.current_pin}` : '¡CANJEAR PREMIO!'}
+                    <button onclick="claimBoardPrize()" class="w-full py-5 ${isPendingBoard ? 'bg-neutral-200 text-neutral-500' : 'bg-black text-white'} rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg" ${isPendingBoard ? 'disabled' : ''}>
+                        <i data-lucide="star"></i> ${isPendingBoard ? `CÓDIGO: ${user.current_pin}` : '¡CANJEAR MI PIZZA!'}
                     </button>
                 `;
             } else {
-                // Botón normal de sellar
                 btnContainer.innerHTML = `
-                    <button id="btn-scan" onclick="openScanner()" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg transition-all">
-                        <i data-lucide="qr-code"></i> ¡SOLICITAR SELLO!
+                    <button id="btn-scan" onclick="openScanner()" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg ${isProcessing ? 'btn-loading' : ''}">
+                        <i data-lucide="qr-code"></i> ${isProcessing ? 'PROCESANDO...' : '¡SOLICITAR SELLO!'}
                     </button>
                 `;
             }
 
-            // Render de Cupones (Sin cambios)
+            // Carrusel de Cupones
             const carousel = document.getElementById('rewards-carousel');
             carousel.innerHTML = '';
             let hasRewards = false;
-
             const catalog = [
                 { id: 'bienvenida', estado: user.cupon_bienvenida, titulo: '🎁 BIENVENIDA', premio: 'Bebida Gratis' },
                 { id: 'cumple', estado: user.cupon_cumple, titulo: '🎂 CUMPLEAÑOS', premio: 'Rebanada Gratis' }
@@ -162,7 +166,7 @@
                         <button id="btn-${c.id}" onclick="requestPin('${c.id}')" 
                                 class="w-full py-3 ${isPending ? 'bg-neutral-100 text-neutral-400' : 'bg-black text-white'} rounded-xl text-[10px] font-black uppercase"
                                 ${isPending ? 'disabled' : ''}>
-                            ${isPending ? `CÓDIGO: ${user.current_pin}` : 'Canjear Ahora'}
+                            ${isPending ? `PIN: ${user.current_pin}` : 'Canjear'}
                         </button>
                     `;
                     carousel.appendChild(card);
@@ -172,90 +176,92 @@
             lucide.createIcons();
         }
 
-        // REPARACIÓN 6: Función especial para canjear el tablero lleno
-        async function claimBoardPrize() {
-            const randomPin = Math.floor(100 + Math.random() * 900);
-            if (confirm(`¡Has completado tus 10 sellos!\n\n¿Quieres canjear tu premio ahora?\nDicta el código ${randomPin} al personal.`)) {
-                user.stamps = 0; // Reinicia el tablero visualmente
-                user.current_pin = randomPin;
-                user.active_coupon = "TABLERO";
-                localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
-                renderApp();
-
-                await fetch(CONFIG.scriptURL, {
-                    method: 'POST', mode: 'no-cors',
-                    body: JSON.stringify({ accion: "CANJEAR_TABLERO", email: user.email, pin: randomPin })
-                });
-            }
-        }
-
-        async function requestPin(cuponId) {
-            const randomPin = Math.floor(100 + Math.random() * 900);
-            if (confirm(`¿Canjear ahora?\nDicta el código ${randomPin} al personal.`)) {
-                user.current_pin = randomPin;
-                user.active_coupon = cuponId;
-                localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
-                renderApp();
-
-                await fetch(CONFIG.scriptURL, {
-                    method: 'POST', mode: 'no-cors',
-                    body: JSON.stringify({ accion: "GENERAR_PIN", email: user.email, pin: randomPin })
-                });
-            }
-        }
+        // --- LÓGICA DE ESCÁNER Y SELLOS ---
 
         function openScanner() {
+            if(isProcessing) return; // Bloqueo de seguridad nivel 1
             document.getElementById('scanner-modal').classList.remove('hidden');
             html5QrCode = new Html5Qrcode("reader");
             html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, 
                 async (text) => {
                     if(text.startsWith("SD-") || text === "SLICE_DOG_STAMP") {
-                        await html5QrCode.stop();
-                        document.getElementById('scanner-modal').classList.add('hidden');
-                        
-                        // REPARACIÓN 3: Bloquear el botón y mostrar "Validando"
-                        const btn = document.getElementById('btn-scan');
-                        btn.disabled = true;
-                        btn.classList.add('opacity-50');
-                        btn.innerHTML = `<i data-lucide="loader" class="animate-spin"></i> VALIDANDO...`;
-                        lucide.createIcons();
-                        
+                        await closeScanner(); // Cerramos cámara antes de procesar
                         addStampToServer();
                     } else {
-                        alert("Código no reconocido.");
+                        alert("Código inválido.");
                     }
                 }
-            ).catch(err => alert("Error cámara: " + err));
+            ).catch(err => console.log(err));
         }
 
         async function addStampToServer() {
-            // Sube el sello visualmente
+            if(isProcessing) return;
+            isProcessing = true; // Bloqueo de seguridad nivel 2
+            renderApp(); // Actualiza el botón a "PROCESANDO..."
+
+            // Actualización local para feedback rápido
             user.stamps = (user.stamps || 0) + 1;
+            localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
             renderApp();
-            
+
             try {
                 await fetch(CONFIG.scriptURL, {
                     method: 'POST', mode: 'no-cors',
                     body: JSON.stringify({ accion: "NUEVO_SELLO", email: user.email })
                 });
-                localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
-                syncWithServer();
+                setTimeout(() => { 
+                    isProcessing = false; // Liberamos el botón tras 1.5 seg para asegurar el sync
+                    syncWithServer(); 
+                }, 1500);
             } catch(e) { 
-                alert("Error al conectar. El sello se guardó localmente."); 
+                isProcessing = false;
+                renderApp();
+            }
+        }
+
+        // --- LÓGICA DE CANJES ---
+
+        async function requestPin(cuponId) {
+            const pin = Math.floor(100 + Math.random() * 900);
+            if (confirm(`¿Canjear este regalo?\nDicta el código ${pin} en caja.`)) {
+                user.current_pin = pin;
+                user.active_coupon = cuponId;
+                localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
+                renderApp();
+                await fetch(CONFIG.scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ accion: "GENERAR_PIN", email: user.email, pin: pin }) });
+            }
+        }
+
+        async function claimBoardPrize() {
+            const pin = Math.floor(100 + Math.random() * 900);
+            if (confirm(`¿Canjear tu premio de 10 sellos?\nCódigo: ${pin}`)) {
+                user.stamps = 0;
+                user.current_pin = pin;
+                user.active_coupon = "TABLERO";
+                localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
+                renderApp();
+                await fetch(CONFIG.scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ accion: "CANJEAR_TABLERO", email: user.email, pin: pin }) });
             }
         }
 
         function closeScanner() {
-            if(html5QrCode) html5QrCode.stop().then(() => { document.getElementById('scanner-modal').classList.add('hidden'); });
+            if(html5QrCode) {
+                return html5QrCode.stop().then(() => {
+                    document.getElementById('scanner-modal').classList.add('hidden');
+                    html5QrCode = null;
+                });
+            }
+            document.getElementById('scanner-modal').classList.add('hidden');
         }
 
         async function registerUser() {
             const name = document.getElementById('reg-name').value;
             const email = document.getElementById('reg-email').value;
             const wa = document.getElementById('reg-whatsapp').value;
-            if(!name || !email || !wa) return alert("Faltan datos");
+            if(!name || !email || !wa) return alert("Completa los datos");
 
-            document.querySelector('#register-modal button').innerText = "Creando cuenta...";
+            document.getElementById('btn-register').innerText = "PROCESANDO...";
+            document.getElementById('btn-register').disabled = true;
 
             await fetch(CONFIG.scriptURL, {
                 method: 'POST', mode: 'no-cors',
