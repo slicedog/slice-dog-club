@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slice Dog Club | v4.5 PRO</title>
+    <title>Slice Dog Club | v4.6 PRO</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -16,32 +16,18 @@
         .btn-disabled { background-color: #a3a3a3 !important; opacity: 0.6 !important; cursor: not-allowed !important; pointer-events: none !important; }
         #reader { width: 100% !important; border: none !important; border-radius: 2rem; overflow: hidden; }
         .coupon-card { min-width: 260px; background: white; border: 2px dashed var(--sd-mustard); border-radius: 1.5rem; padding: 1.5rem; snap-align: center; }
-        .locked-ui { opacity: 0.4; pointer-events: none; filter: grayscale(1); }
+        .locked-ui { opacity: 0.4; pointer-events: none; grayscale: 100%; filter: grayscale(1); }
 
-        /* NUEVO LOADER DE PIZZA REAL (CSS ONLY) */
+        /* NUEVO LOADER PROFESIONAL SVG + ANIMACIÓN */
         #loader {
             position: fixed; inset: 0; background: var(--sd-bg);
             display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
             transition: opacity 0.5s ease-out;
         }
-        .pizza-slice-css {
-            position: relative; width: 60px; height: 60px;
-            background: #f7d692; /* Queso */
-            border-radius: 50% 50% 10px 10px;
-            clip-path: polygon(50% 0%, 100% 100%, 0% 100%); /* Forma de triángulo */
-            animation: spinPizza 1.5s linear infinite;
-        }
-        /* Corteza */
-        .pizza-slice-css::before {
-            content: ''; position: absolute; top: -5px; left: 0; width: 100%; height: 10px;
-            background: #e9a124; border-radius: 5px;
-        }
-        /* Pepperonis */
-        .pizza-slice-css::after {
-            content: ''; position: absolute;
-            width: 8px; height: 8px; background: #ee4444; border-radius: 50%;
-            top: 25px; left: 26px;
-            box-shadow: 15px 15px 0 #ee4444, -10px 20px 0 #ee4444, 10px 30px 0 #ee4444;
+        .pizza-loader-svg {
+            width: 90px; height: 90px;
+            animation: spinPizza 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
         }
         @keyframes spinPizza { 100% { transform: rotate(360deg); } }
     </style>
@@ -208,12 +194,19 @@
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
     <div id="loader">
-        <div class="pizza-slice-css"></div>
-        <p class="italic-black text-[10px] mt-6 tracking-[0.2em] animate-pulse text-orange-600">Estamos cocinando tu perfil...</p>
+        <svg class="pizza-loader-svg" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#e9a124" d="M496.1 404c-11.8 19.3-33 30-55.5 30H71.4c-22.5 0-43.7-10.7-55.5-30-11.8-19.3-11.8-43.4 0-62.7l170.8-278.2c11.8-19.3 33-30 55.5-30s43.7 10.7 55.5 30L496.1 341.3c11.8 19.3 11.8 43.4 0 62.7z"/>
+            <path fill="#f7d692" d="M460 361.3c7.8 12.8 7.8 28.7 0 41.5-7.8 12.8-21.8 19.9-36.8 19.9H88.8c-15 0-29-7.1-36.8-19.9-7.8-12.8-7.8-28.7 0-41.5l146.5-238.6c7.8-12.8 21.8-19.9 36.8-19.9s29 7.1 36.8 19.9L460 361.3z"/>
+            <circle fill="#ee4444" cx="256" cy="340" r="30"/>
+            <circle fill="#ee4444" cx="180" cy="270" r="25"/>
+            <circle fill="#ee4444" cx="332" cy="270" r="25"/>
+            <circle fill="#ee4444" cx="256" cy="200" r="20"/>
+        </svg>
+        <p class="font-bold text-[11px] mt-8 tracking-[0.25em] animate-pulse text-orange-600 uppercase">Cocinando tu perfil</p>
     </div>
 
     <header class="w-full max-w-md text-center py-8">
-        <h1 class="italic-black text-2xl tracking-tighter">Slice Dog <span class="text-orange-600">Club</span> <span class="text-[8px] text-gray-400 font-bold uppercase">v4.5</span></h1>
+        <h1 class="italic-black text-2xl tracking-tighter">Slice Dog <span class="text-orange-600">Club</span> <span class="text-[8px] text-gray-400 font-bold uppercase">v4.6</span></h1>
     </header>
 
     <main id="main-ui" class="w-full max-w-md hidden">
