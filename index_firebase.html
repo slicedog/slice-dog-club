@@ -1,41 +1,247 @@
-// REEMPLAZA TU FUNCIÓN openScanner EN EL INDEX POR ESTA:
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slice Dog Club | Fidelidad</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        :root { --sd-mustard: #e9a124; --sd-dark: #4a2311; --sd-bg: #f3e5d0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); color: var(--sd-dark); margin: 0; }
+        .italic-black { font-weight: 900; font-style: italic; text-transform: uppercase; }
+        .stamp-active { background: linear-gradient(135deg, var(--sd-mustard) 0%, #d48a1a 100%); color: white; border: none; }
+        .btn-disabled { background-color: #a3a3a3 !important; opacity: 0.6 !important; cursor: not-allowed !important; pointer-events: none !important; }
+        #reader { width: 100% !important; border: none !important; border-radius: 2rem; overflow: hidden; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .coupon-card { min-width: 260px; background: white; border: 2px dashed var(--sd-mustard); border-radius: 1.5rem; padding: 1.5rem; snap-align: center; }
+    </style>
 
-window.openScanner = (email, currentStamps) => {
-    const btn = document.getElementById('btn-scan');
-    if(btn.classList.contains('btn-disabled')) return;
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    document.getElementById('scanner-modal').classList.remove('hidden');
-    html5QrCode = new Html5Qrcode("reader");
+        const firebaseConfig = {
+            apiKey: "AIzaSyAFwDQVPy4xRjw4rxcKcZEwNx1suV7eWW8",
+            authDomain: "slice-dog-test-firebase.firebaseapp.com",
+            projectId: "slice-dog-test-firebase",
+            storageBucket: "slice-dog-test-firebase.firebasestorage.app",
+            messagingSenderId: "1024055139023",
+            appId: "1:1024055139023:web:42985e24651b5a5f38f5ba"
+        };
 
-    const SECRET_SALT = "SLICE_DOG_PRO_2026"; // DEBE SER IGUAL A LA DEL STAFF
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
-    html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, 
-        async (text) => {
-            await window.closeScanner();
+        // CONFIGURACIÓN DE SEGURIDAD (DEBE COINCIDIR CON STAFF.HTML)
+        const SECRET_SALT = "SLICE_DOG_PRO_2026"; 
+        const COOLDOWN_TIME = 60000; // 1 minuto de bloqueo
+
+        let userData = JSON.parse(localStorage.getItem("sd_user_email"));
+        let html5QrCode;
+
+        // --- REGISTRO ---
+        async function registerUser() {
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value.toLowerCase().trim();
+            const wa = document.getElementById('reg-whatsapp').value;
+            if(!name || !email || !wa) return alert("Completa los datos");
             
-            // Bloqueo instantáneo preventivo
-            btn.classList.add('btn-disabled');
-            localStorage.setItem("sd_last_stamp_time", Date.now());
+            try {
+                const userRef = doc(db, "users", email);
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists()) {
+                    localStorage.setItem("sd_user_email", JSON.stringify(email));
+                    location.reload();
+                } else {
+                    await setDoc(userRef, { name, email, whatsapp: wa, stamps: 1, cupon_bienvenida: "LISTO", cupon_cumple: "LISTO", lastUpdate: new Date() });
+                    localStorage.setItem("sd_user_email", JSON.stringify(email));
+                    location.reload();
+                }
+            } catch (e) { alert("Error al registrar"); }
+        }
 
-            const now = new Date();
-            const getT = (minOffset) => {
-                const d = new Date(now.getTime() + minOffset * 60000);
-                const interval = Math.floor(d.getMinutes() / 3);
-                return btoa(SECRET_SALT + d.getFullYear() + (d.getMonth()+1) + d.getDate() + d.getHours() + interval).substring(0, 12);
-            };
+        // --- VALIDACIÓN DE QR Y SELLADO ---
+        window.openScanner = (email, currentStamps) => {
+            const btn = document.getElementById('btn-scan');
+            if(btn.classList.contains('btn-disabled')) return;
 
-            // VALIDAMOS 3 VENTANAS: Minuto actual, 3 min antes y 3 min después
-            const tokensValidos = [getT(0), getT(-3), getT(3)];
+            document.getElementById('scanner-modal').classList.remove('hidden');
+            html5QrCode = new Html5Qrcode("reader");
 
-            if (tokensValidos.includes(text)) {
-                // Sello exitoso
-                addStamp(email, currentStamps);
+            html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, 
+                async (text) => {
+                    await window.closeScanner();
+                    
+                    // 1. Bloqueo visual preventivo
+                    btn.classList.add('btn-disabled');
+
+                    // 2. Generar tokens válidos (Ventana de 3 min: actual, anterior y siguiente)
+                    const now = new Date();
+                    const getT = (minOffset) => {
+                        const d = new Date(now.getTime() + minOffset * 60000);
+                        const interval = Math.floor(d.getMinutes() / 3);
+                        const str = SECRET_SALT + d.getFullYear() + (d.getMonth()+1) + d.getDate() + d.getHours() + interval;
+                        return btoa(str).substring(0, 12);
+                    };
+
+                    const tokensValidos = [getT(0), getT(-3), getT(3)];
+
+                    // 3. Verificar si el QR escaneado es correcto
+                    if (tokensValidos.includes(text)) {
+                        // Guardar tiempo del sello para el cooldown
+                        localStorage.setItem("sd_last_stamp_time", Date.now());
+                        
+                        // Actualizar Firebase
+                        const userRef = doc(db, "users", email);
+                        await updateDoc(userRef, { stamps: currentStamps + 1, lastUpdate: new Date() });
+                    } else {
+                        alert("⚠️ CÓDIGO INVÁLIDO O EXPIRADO.\nPor favor, escanea el código que ves en la pantalla del local.");
+                        btn.classList.remove('btn-disabled'); // Re-habilitar si falló
+                    }
+                }
+            ).catch(e => console.error(e));
+        };
+
+        window.closeScanner = async () => {
+            if(html5QrCode) { await html5QrCode.stop(); html5QrCode = null; }
+            document.getElementById('scanner-modal').classList.add('hidden');
+        };
+
+        // --- RENDERIZADO DE LA INTERFAZ ---
+        function renderApp(data) {
+            document.getElementById('register-modal').classList.add('hidden');
+            document.getElementById('main-ui').classList.remove('hidden');
+            document.getElementById('user-greeting').innerText = `HOLA, ${data.name} 🍕`;
+
+            const currentStamps = data.stamps || 0;
+            const statusEl = document.getElementById('status-title');
+            const btnContainer = document.getElementById('action-btn-container');
+
+            // Lógica de Premio o Botón de Scan
+            if (currentStamps >= 10 || data.active_pin) {
+                statusEl.innerText = "¡PREMIO LISTO!";
+                btnContainer.innerHTML = `
+                    <button id="btn-claim" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black flex flex-col items-center justify-center shadow-lg">
+                        <span class="text-xs font-bold mb-1">${data.active_pin ? 'PIN DE CANJE' : 'CANJEAR REBANADA GRATIS'}</span>
+                        <span class="text-2xl">${data.active_pin ? data.active_pin : 'OBTENER PIN'}</span>
+                    </button>`;
+                if(!data.active_pin) document.getElementById('btn-claim').onclick = () => useCoupon(data.email, 'TABLERO');
             } else {
-                // Error sin recargar la página
-                alert("⚠️ Código expirado. Por favor, enfoca el QR que está en la pantalla del local.");
-                btn.classList.remove('btn-disabled');
-                localStorage.removeItem("sd_last_stamp_time");
+                statusEl.innerText = `FALTAN ${10 - currentStamps} PARA PREMIO`;
+                btnContainer.innerHTML = `<button id="btn-scan" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg"><i data-lucide="qr-code"></i> ¡SOLICITAR SELLO!</button>`;
+                
+                // Verificar Cooldown (1 minuto entre sellos)
+                const lastS = localStorage.getItem("sd_last_stamp_time");
+                if (lastS && (Date.now() - lastS < COOLDOWN_TIME)) {
+                    startCooldownTimer(COOLDOWN_TIME - (Date.now() - lastS));
+                } else {
+                    document.getElementById('btn-scan').onclick = () => openScanner(data.email, currentStamps);
+                }
+            }
+
+            // Dibujar Sellos
+            const grid = document.getElementById('stamps-grid');
+            grid.innerHTML = '';
+            for(let i=0; i<10; i++) {
+                const active = i < currentStamps;
+                const slot = document.createElement('div');
+                slot.className = `aspect-square rounded-2xl flex items-center justify-center border-2 ${active ? 'stamp-active' : 'border-dashed border-neutral-300 bg-neutral-50/50'}`;
+                slot.innerHTML = active ? (i === 9 ? '<i data-lucide="gift"></i>' : '<i data-lucide="pizza"></i>') : (i === 9 ? '<i data-lucide="gift" class="text-neutral-300"></i>' : '');
+                grid.appendChild(slot);
+            }
+
+            // Dibujar Cupones
+            const carousel = document.getElementById('rewards-carousel');
+            carousel.innerHTML = '';
+            const catalog = [
+                { id: 'cupon_bienvenida', title: '🎁 BIENVENIDA', gift: 'Bebida Gratis', status: data.cupon_bienvenida },
+                { id: 'cupon_cumple', title: '🎂 CUMPLE', gift: 'Rebanada Gratis', status: data.cupon_cumple }
+            ];
+            catalog.forEach(c => {
+                if(c.status === "LISTO") {
+                    const card = document.createElement('div');
+                    card.className = 'coupon-card text-center';
+                    card.innerHTML = `<p class="text-[9px] font-bold uppercase text-orange-500 mb-1">${c.title}</p><h4 class="italic-black text-lg mb-4">${c.gift}</h4><button class="w-full py-3 bg-black text-white rounded-xl text-[10px] font-black uppercase">Canjear</button>`;
+                    card.querySelector('button').onclick = () => useCoupon(data.email, c.id);
+                    carousel.appendChild(card);
+                }
+            });
+            lucide.createIcons();
+        }
+
+        function startCooldownTimer(remainingMs) {
+            const btn = document.getElementById('btn-scan');
+            if(!btn) return;
+            btn.classList.add('btn-disabled');
+            let seconds = Math.ceil(remainingMs / 1000);
+            const interval = setInterval(() => {
+                seconds--;
+                btn.innerHTML = `<i data-lucide="clock" class="w-4 h-4"></i> ESPERA (${seconds}s)`;
+                if (seconds <= 0) { clearInterval(interval); location.reload(); }
+            }, 1000);
+        }
+
+        async function useCoupon(email, type) {
+            const pin = Math.floor(100 + Math.random() * 900);
+            if(confirm(`¿Canjear ahora?\nPIN para el Staff: ${pin}`)) {
+                const userRef = doc(db, "users", email);
+                const updateData = { active_pin: pin };
+                if(type === 'TABLERO') updateData.stamps = 0;
+                else updateData[type] = "USADO";
+                await updateDoc(userRef, updateData);
             }
         }
-    ).catch(e => console.error(e));
-};
+
+        window.onload = () => {
+            if(userData) onSnapshot(doc(db, "users", userData), (doc) => { if(doc.exists()) renderApp(doc.data()); });
+            else document.getElementById('register-modal').classList.remove('hidden');
+            document.getElementById('btn-register').onclick = registerUser;
+            lucide.createIcons();
+        };
+    </script>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4">
+
+    <header class="w-full max-w-md text-center py-8">
+        <h1 class="italic-black text-2xl tracking-tighter">Slice Dog <span class="text-orange-600">Club</span></h1>
+    </header>
+
+    <main id="main-ui" class="w-full max-w-md hidden">
+        <div class="bg-white rounded-[2.5rem] p-8 text-center shadow-xl mb-6 border-b-8 border-orange-500/10">
+            <p id="user-greeting" class="text-[10px] font-black uppercase text-neutral-400 mb-2 tracking-widest"></p>
+            <h2 id="status-title" class="italic-black text-3xl mb-8 leading-none"></h2>
+            
+            <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-10"></div>
+            
+            <div id="action-btn-container"></div>
+        </div>
+
+        <div class="w-full overflow-hidden mb-8">
+            <h3 class="text-[10px] font-black uppercase text-neutral-400 mb-3 px-2 tracking-widest">Premios Disponibles</h3>
+            <div id="rewards-carousel" class="flex gap-4 overflow-x-auto pb-6 px-2 snap-x scrollbar-hide"></div>
+        </div>
+    </main>
+
+    <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[200] flex flex-col items-center justify-center p-6 hidden">
+        <div class="w-full max-w-sm bg-white rounded-[3rem] p-4 relative">
+            <div id="reader"></div>
+            <button onclick="closeScanner()" class="mt-4 w-full py-4 text-xs font-black uppercase text-neutral-400">Cerrar Cámara</button>
+        </div>
+    </div>
+
+    <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
+        <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-4 border-[var(--sd-mustard)] shadow-2xl">
+            <h2 class="italic-black text-2xl mb-6">Únete al Club</h2>
+            <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none focus:ring-2 focus:ring-orange-500">
+            <input type="email" id="reg-email" placeholder="Correo Electrónico" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none focus:ring-2 focus:ring-orange-500">
+            <input type="tel" id="reg-whatsapp" placeholder="WhatsApp (Ej: 52...)" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center border-none focus:ring-2 focus:ring-orange-500">
+            <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black shadow-lg">OBTENER MI PRIMER SELLO</button>
+        </div>
+    </div>
+
+</body>
+</html>
