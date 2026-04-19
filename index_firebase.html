@@ -163,28 +163,29 @@
                 const currentStamps = data.stamps || 0;
                 
                 if (currentStamps >= 10) {
-                    statusEl.innerText = "¡PREMIO LISTO!";
-                    btnContainer.innerHTML = `<button id="btn-claim" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black shadow-lg">OBTENER PIN</button>`;
-                    document.getElementById('btn-claim').onclick = () => useCoupon(data.email, 'TABLERO');
-                } else {
-                    statusEl.innerText = `FALTAN ${10 - currentStamps} PARA PREMIO`;
-                    btnContainer.innerHTML = `<button id="btn-scan" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg uppercase"><i data-lucide="qr-code"></i> Solicitar Sello</button>`;
-                    const lastS = localStorage.getItem("sd_last_stamp_time");
-                    if (lastS && (Date.now() - lastS < COOLDOWN_TIME)) startCooldownTimer(COOLDOWN_TIME - (Date.now() - lastS));
-                    else document.getElementById('btn-scan').onclick = () => openScanner(data.email, currentStamps);
-                }
+    statusEl.innerText = "¡PREMIO LISTO!";
+    // Añadimos el botón de compartir arriba del de obtener PIN
+    btnContainer.innerHTML = `
+        <button id="btn-share" class="w-full py-3 mb-3 bg-white text-orange-600 border-2 border-orange-600 rounded-[1.5rem] font-black text-xs flex items-center justify-center gap-2 uppercase">
+            <i data-lucide="share-2" class="w-4 h-4"></i> Presumir mi premio
+        </button>
+        <button id="btn-claim" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black shadow-lg uppercase">
+            Obtener PIN de Canje
+        </button>
+    `;
+    
+    // Función de compartir
+    document.getElementById('btn-share').onclick = () => {
+        const text = `¡Ya completé mi tablero en Slice Dog Club! 🍕🔥 ¡Hoy como gratis!`;
+        if (navigator.share) {
+            navigator.share({ title: 'Slice Dog Club', text: text, url: window.location.href });
+        } else {
+            window.open(`https://wa.me/?text=${encodeURIComponent(text + " " + window.location.href)}`);
+        }
+    };
 
-                // Grid de sellos
-                const grid = document.getElementById('stamps-grid');
-                grid.innerHTML = '';
-                for(let i=0; i<10; i++) {
-                    const active = i < currentStamps;
-                    const slot = document.createElement('div');
-                    slot.className = `aspect-square rounded-2xl flex items-center justify-center border-2 ${active ? 'stamp-active' : 'border-dashed border-neutral-300 bg-neutral-50/50'}`;
-                    slot.innerHTML = active ? (i === 9 ? '<i data-lucide="gift"></i>' : '<i data-lucide="pizza"></i>') : (i === 9 ? '<i data-lucide="gift" class="text-neutral-300"></i>' : '');
-                    grid.appendChild(slot);
-                }
-            }
+    document.getElementById('btn-claim').onclick = () => useCoupon(data.email, 'TABLERO');
+}
 
             // CARRUSEL DE PREMIOS
             const carousel = document.getElementById('rewards-carousel');
