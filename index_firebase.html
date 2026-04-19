@@ -17,13 +17,15 @@
         .coupon-card { min-width: 260px; background: white; border: 2px dashed var(--sd-mustard); border-radius: 1.5rem; padding: 1.5rem; position: relative; snap-align: center; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         #reader { width: 100% !important; border: none !important; border-radius: 2rem; overflow: hidden; }
+        
+        /* Estilo para botón desactivado */
+        .btn-disabled { background-color: #a3a3a3 !important; opacity: 0.6 !important; cursor: not-allowed !important; pointer-events: none !important; }
     </style>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // 1. CONFIGURACIÓN DE TU FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyAFwDQVPy4xRjw4rxcKcZEwNx1suV7eWW8",
             authDomain: "slice-dog-test-firebase.firebaseapp.com",
@@ -36,80 +38,54 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- VARIABLES GLOBALES ---
         let userData = JSON.parse(localStorage.getItem("sd_user_email"));
         let html5QrCode;
-        const COOLDOWN_TIME = 60000; // 1 minuto de bloqueo
-
-        // --- FUNCIONES DE LÓGICA ---
+        const COOLDOWN_TIME = 60000; 
 
         async function registerUser() {
             const name = document.getElementById('reg-name').value;
             const email = document.getElementById('reg-email').value.toLowerCase().trim();
             const wa = document.getElementById('reg-whatsapp').value;
-
             if(!name || !email || !wa) return alert("Completa los datos");
-
             const btn = document.getElementById('btn-register');
             btn.innerText = "VERIFICANDO...";
             btn.disabled = true;
-
             try {
                 const userRef = doc(db, "users", email);
                 const userSnap = await getDoc(userRef);
-
                 if (userSnap.exists()) {
                     localStorage.setItem("sd_user_email", JSON.stringify(email));
                     location.reload();
                 } else {
-                    const newUser = {
-                        name: name, email: email, whatsapp: wa,
-                        stamps: 1, cupon_bienvenida: "LISTO", cupon_cumple: "LISTO",
-                        lastUpdate: new Date()
-                    };
+                    const newUser = { name, email, whatsapp: wa, stamps: 1, cupon_bienvenida: "LISTO", cupon_cumple: "LISTO", lastUpdate: new Date() };
                     await setDoc(userRef, newUser);
                     localStorage.setItem("sd_user_email", JSON.stringify(email));
                     location.reload();
                 }
-            } catch (e) {
-                alert("Error de conexión");
-                btn.disabled = false;
-                btn.innerText = "¡Empezar!";
-            }
+            } catch (e) { alert("Error"); btn.disabled = false; }
         }
 
         async function addStamp(email, currentStamps) {
-            const lastStamp = localStorage.getItem("sd_last_stamp_time");
-            const now = Date.now();
-
-            if (lastStamp && (now - lastStamp < COOLDOWN_TIME)) {
-                const remaining = Math.ceil((COOLDOWN_TIME - (now - lastStamp)) / 1000);
-                alert(`Seguridad: Espera ${remaining} segundos.`);
-                return;
-            }
-
             const userRef = doc(db, "users", email);
-            await updateDoc(userRef, { 
-                stamps: currentStamps + 1,
-                lastUpdate: new Date() 
-            });
-            localStorage.setItem("sd_last_stamp_time", now);
+            await updateDoc(userRef, { stamps: currentStamps + 1, lastUpdate: new Date() });
+            localStorage.setItem("sd_last_stamp_time", Date.now());
+            // El render automático de onSnapshot activará el timer
         }
 
         function startCooldownTimer(remainingMs) {
             const btn = document.getElementById('btn-scan');
             if(!btn) return;
-            btn.disabled = true;
-            btn.classList.add('opacity-50', 'grayscale');
+            
+            btn.classList.add('btn-disabled');
             let seconds = Math.ceil(remainingMs / 1000);
+            
             const interval = setInterval(() => {
                 seconds--;
                 btn.innerHTML = `<i data-lucide="clock" class="w-4"></i> ESPERA (${seconds}s)`;
                 lucide.createIcons();
                 if (seconds <= 0) {
                     clearInterval(interval);
-                    btn.disabled = false;
-                    btn.classList.remove('opacity-50', 'grayscale');
+                    btn.classList.remove('btn-disabled');
                     btn.innerHTML = `<i data-lucide="qr-code"></i> ¡SOLICITAR SELLO!`;
                     lucide.createIcons();
                 }
@@ -118,7 +94,7 @@
 
         async function useCoupon(email, type) {
             const pin = Math.floor(100 + Math.random() * 900);
-            if(confirm(`¿Confirmas el canje?\nDicta el PIN: ${pin} al staff.`)) {
+            if(confirm(`¿Canjear?\nPIN: ${pin}`)) {
                 const userRef = doc(db, "users", email);
                 const updateData = { active_pin: pin };
                 if(type === 'TABLERO') updateData.stamps = 0;
@@ -149,11 +125,14 @@
                 statusEl.innerText = `FALTAN ${10 - currentStamps} PARA PREMIO`;
                 statusEl.classList.remove("text-orange-600", "animate-pulse");
                 btnContainer.innerHTML = `<button id="btn-scan" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg"><i data-lucide="qr-code"></i> ¡SOLICITAR SELLO!</button>`;
-                document.getElementById('btn-scan').onclick = () => openScanner(data.email, currentStamps);
                 
+                // Aplicar bloqueo ANTES de asignar el click
                 const lastStamp = localStorage.getItem("sd_last_stamp_time");
-                if (lastStamp && (Date.now() - lastStamp < COOLDOWN_TIME)) {
-                    startCooldownTimer(COOLDOWN_TIME - (Date.now() - lastStamp));
+                const timePassed = Date.now() - lastStamp;
+                if (lastStamp && (timePassed < COOLDOWN_TIME)) {
+                    startCooldownTimer(COOLDOWN_TIME - timePassed);
+                } else {
+                    document.getElementById('btn-scan').onclick = () => openScanner(data.email, currentStamps);
                 }
             }
 
@@ -169,10 +148,7 @@
 
             const carousel = document.getElementById('rewards-carousel');
             carousel.innerHTML = '';
-            const catalog = [
-                { id: 'cupon_bienvenida', title: '🎁 BIENVENIDA', gift: 'Bebida Gratis', status: data.cupon_bienvenida },
-                { id: 'cupon_cumple', title: '🎂 CUMPLE', gift: 'Rebanada Gratis', status: data.cupon_cumple }
-            ];
+            const catalog = [{ id: 'cupon_bienvenida', title: '🎁 BIENVENIDA', gift: 'Bebida Gratis', status: data.cupon_bienvenida }, { id: 'cupon_cumple', title: '🎂 CUMPLE', gift: 'Rebanada Gratis', status: data.cupon_cumple }];
             let count = 0;
             catalog.forEach(c => {
                 if(c.status === "LISTO") {
@@ -189,7 +165,8 @@
         }
 
         window.openScanner = (email, currentStamps) => {
-            if(document.getElementById('btn-scan').disabled) return;
+            const btn = document.getElementById('btn-scan');
+            if(btn.classList.contains('btn-disabled')) return;
             document.getElementById('scanner-modal').classList.remove('hidden');
             html5QrCode = new Html5Qrcode("reader");
             html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, async (text) => {
@@ -214,11 +191,9 @@
     </script>
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
-
     <header class="w-full max-w-md text-center py-6">
         <h1 class="italic-black text-2xl">Slice Dog <span class="text-orange-600">Club</span></h1>
     </header>
-
     <main id="main-ui" class="w-full max-w-md hidden">
         <div class="bg-white rounded-[2.5rem] p-8 text-center shadow-xl mb-6">
             <p id="user-greeting" class="text-[10px] font-black uppercase text-neutral-400 mb-1"></p>
@@ -226,12 +201,10 @@
             <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-10"></div>
             <div id="action-btn-container"></div>
         </div>
-
         <div id="section-rewards" class="hidden w-full overflow-hidden mb-8">
             <h3 class="text-[10px] font-black uppercase text-neutral-400 mb-3 px-2">Mis Regalos Disponibles</h3>
             <div id="rewards-carousel" class="flex gap-4 overflow-x-auto pb-6 px-2 snap-x scrollbar-hide"></div>
         </div>
-
         <section class="w-full px-2 mb-10">
             <div class="bg-white/50 rounded-2xl p-6 border border-white">
                 <h4 class="text-[10px] font-black mb-4 uppercase text-neutral-500 flex items-center gap-2">
@@ -244,14 +217,12 @@
             </div>
         </section>
     </main>
-
     <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[200] flex flex-col items-center justify-center p-6 hidden">
         <div class="w-full max-w-sm bg-white rounded-[3rem] p-4 relative">
             <div id="reader"></div>
             <button onclick="closeScanner()" class="mt-4 w-full py-3 text-xs font-bold uppercase text-black">Cancelar</button>
         </div>
     </div>
-
     <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
         <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-4 border-[var(--sd-mustard)] shadow-2xl">
             <h2 class="italic-black text-2xl mb-6">Unirse al Club</h2>
