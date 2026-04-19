@@ -47,30 +47,47 @@
         // --- FUNCIONES CORE ---
 
         async function registerUser() {
-            const name = document.getElementById('reg-name').value;
-            const email = document.getElementById('reg-email').value.toLowerCase().trim();
-            const wa = document.getElementById('reg-whatsapp').value;
+    const name = document.getElementById('reg-name').value;
+    const email = document.getElementById('reg-email').value.toLowerCase().trim();
+    const wa = document.getElementById('reg-whatsapp').value;
 
-            if(!name || !email || !wa) return alert("Completa los datos");
+    if(!name || !email || !wa) return alert("Completa los datos");
 
-            const btn = document.getElementById('btn-register');
-            btn.innerText = "CREANDO CUENTA...";
-            btn.disabled = true;
+    const btn = document.getElementById('btn-register');
+    btn.innerText = "VERIFICANDO...";
+    btn.disabled = true;
 
+    try {
+        const userRef = doc(db, "users", email);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+            // SI YA EXISTE (El cliente que cargaste manual)
+            console.log("Usuario existente encontrado, cargando progreso...");
+            localStorage.setItem("sd_user_email", JSON.stringify(email));
+            location.reload();
+        } else {
+            // SI ES TOTALMENTE NUEVO
             const newUser = {
                 name: name,
                 email: email,
                 whatsapp: wa,
-                stamps: 1, // Regalo de bienvenida
+                stamps: 1, // Sello de bienvenida
                 cupon_bienvenida: "LISTO",
                 cupon_cumple: "LISTO",
                 lastUpdate: new Date()
             };
-
-            await setDoc(doc(db, "users", email), newUser);
+            await setDoc(userRef, newUser);
             localStorage.setItem("sd_user_email", JSON.stringify(email));
             location.reload();
         }
+    } catch (error) {
+        console.error("Error al registrar:", error);
+        alert("Hubo un error, intenta de nuevo.");
+        btn.disabled = false;
+        btn.innerText = "¡Empezar!";
+    }
+}
 
         function listenToUserUpdates(email) {
             onSnapshot(doc(db, "users", email), (doc) => {
