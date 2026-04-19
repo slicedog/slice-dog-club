@@ -3,33 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slice Dog Club | v4.6 PRO</title>
+    <title>Slice Dog Club | v4.7 PRO</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         :root { --sd-mustard: #e9a124; --sd-dark: #4a2311; --sd-bg: #f3e5d0; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); color: var(--sd-dark); margin: 0; overflow-x: hidden; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); color: var(--sd-dark); margin: 0; overflow: hidden; }
         .italic-black { font-weight: 900; font-style: italic; text-transform: uppercase; }
-        .stamp-active { background: linear-gradient(135deg, var(--sd-mustard) 0%, #d48a1a 100%); color: white; border: none; }
-        .btn-disabled { background-color: #a3a3a3 !important; opacity: 0.6 !important; cursor: not-allowed !important; pointer-events: none !important; }
-        #reader { width: 100% !important; border: none !important; border-radius: 2rem; overflow: hidden; }
-        .coupon-card { min-width: 260px; background: white; border: 2px dashed var(--sd-mustard); border-radius: 1.5rem; padding: 1.5rem; snap-align: center; }
-        .locked-ui { opacity: 0.4; pointer-events: none; grayscale: 100%; filter: grayscale(1); }
-
-        /* NUEVO LOADER PROFESIONAL SVG + ANIMACIÓN */
+        
+        /* ESTILO SPLASH SCREEN (FIEL A TU IMAGEN) */
         #loader {
             position: fixed; inset: 0; background: var(--sd-bg);
             display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
-            transition: opacity 0.5s ease-out;
+            transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .pizza-loader-svg {
-            width: 90px; height: 90px;
-            animation: spinPizza 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+        .pizza-glow {
+            width: 120px; height: 120px;
+            background: radial-gradient(circle, rgba(233,161,36,0.2) 0%, rgba(243,229,208,0) 70%);
+            display: flex; align-items: center; justify-content: center;
+            animation: pulseGlow 2s ease-in-out infinite;
         }
-        @keyframes spinPizza { 100% { transform: rotate(360deg); } }
+        @keyframes pulseGlow { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 1; } }
+        
+        .dot-flashing {
+            display: inline-flex; gap: 4px; margin-top: 15px;
+        }
+        .dot { width: 6px; height: 6px; background: #c4b5a0; border-radius: 50%; animation: dotAnimation 1.5s infinite; }
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes dotAnimation { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+        /* Estilos App */
+        .stamp-active { background: linear-gradient(135deg, var(--sd-mustard) 0%, #d48a1a 100%); color: white; border: none; }
+        .coupon-card { min-width: 260px; background: white; border: 2px dashed var(--sd-mustard); border-radius: 1.5rem; padding: 1.5rem; snap-align: center; }
+        .locked-ui { opacity: 0.4; pointer-events: none; filter: grayscale(1); }
+        #main-ui { overflow-y: auto; height: 100vh; }
     </style>
 
     <script type="module">
@@ -55,21 +65,18 @@
         let userData = JSON.parse(localStorage.getItem("sd_user_email"));
         let html5QrCode;
 
-        // Ocultar loader con efecto suave
         const hideLoader = () => {
             const l = document.getElementById('loader');
-            if(l && l.style.opacity !== '0') {
-                l.style.opacity = '0';
-                setTimeout(() => l.remove(), 500);
-            }
+            if(l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 600); }
         };
 
+        // --- LÓGICA DE CANJES ---
         async function useCoupon(email, type) {
             const userRef = doc(db, "users", email);
             const snap = await getDoc(userRef);
             if (snap.exists() && snap.data().active_pin) { alert("⚠️ YA TIENES UN CANJE ACTIVO"); return; }
             const pin = Math.floor(100 + Math.random() * 900);
-            if(confirm(`¿Generar PIN de canje?\nTienes 5 minutos.`)) {
+            if(confirm(`¿Generar PIN de canje?`)) {
                 const updateData = { active_pin: pin, pin_type: type, pin_timestamp: Date.now() };
                 if(type === 'TABLERO') updateData.stamps = 0;
                 else updateData[type] = "PROCESANDO";
@@ -77,6 +84,7 @@
             }
         }
 
+        // --- ESCÁNER ---
         window.openScanner = (email, currentStamps) => {
             document.getElementById('scanner-modal').classList.remove('hidden');
             html5QrCode = new Html5Qrcode("reader");
@@ -97,6 +105,7 @@
             document.getElementById('scanner-modal').classList.add('hidden');
         };
 
+        // --- RENDER ---
         function renderApp(data) {
             hideLoader();
             document.getElementById('register-modal').classList.add('hidden');
@@ -120,7 +129,7 @@
                 }
                 const restantes = Math.ceil((limite - transcurrido) / 1000);
                 statusEl.innerText = "MUESTRA EL PIN";
-                btnContainer.innerHTML = `<div class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black flex flex-col items-center justify-center shadow-lg animate-pulse"><span class="text-4xl tracking-[0.3em] ml-3">${data.active_pin}</span><span class="text-[10px] mt-2 opacity-80 uppercase font-bold text-center px-4">EXPIRA EN ${Math.floor(restantes/60)}:${(restantes%60).toString().padStart(2,'0')}</span></div>`;
+                btnContainer.innerHTML = `<div class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black flex flex-col items-center justify-center shadow-lg animate-pulse"><span class="text-4xl tracking-[0.3em] ml-3">${data.active_pin}</span><span class="text-[10px] mt-2 opacity-80 font-bold">EXPIRA EN ${Math.floor(restantes/60)}:${(restantes%60).toString().padStart(2,'0')}</span></div>`;
                 rewardsSection.classList.add('locked-ui');
             } else {
                 rewardsSection.classList.remove('locked-ui');
@@ -129,7 +138,7 @@
                     statusEl.innerText = "¡PREMIO LISTO!";
                     btnContainer.innerHTML = `<button id="btn-share" class="w-full py-3 mb-3 bg-white text-orange-600 border-2 border-orange-600 rounded-[1.5rem] font-black text-[10px] flex items-center justify-center gap-2 uppercase"><i data-lucide="share-2" class="w-4 h-4"></i> Presumir mi premio</button><button id="btn-claim" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black shadow-lg">OBTENER PIN</button>`;
                     document.getElementById('btn-share').onclick = () => {
-                         const text = `¡Ya completé mi tablero en Slice Dog Club! 🍕🔥`;
+                         const text = `¡Hoy como gratis en Slice Dog Club! 🍕🔥`;
                          if (navigator.share) navigator.share({ title: 'Slice Dog Club', text: text, url: window.location.href });
                          else window.open(`https://wa.me/?text=${encodeURIComponent(text + " " + window.location.href)}`);
                     };
@@ -141,8 +150,7 @@
                     if (lastS && (Date.now() - lastS < COOLDOWN_TIME)) startCooldownTimer(COOLDOWN_TIME - (Date.now() - lastS));
                     else document.getElementById('btn-scan').onclick = () => openScanner(data.email, currentStamps);
                 }
-                const grid = document.getElementById('stamps-grid');
-                grid.innerHTML = '';
+                const grid = document.getElementById('stamps-grid'); grid.innerHTML = '';
                 for(let i=0; i<10; i++) {
                     const active = i < currentStamps;
                     const slot = document.createElement('div');
@@ -151,8 +159,7 @@
                     grid.appendChild(slot);
                 }
             }
-            const carousel = document.getElementById('rewards-carousel');
-            carousel.innerHTML = '';
+            const carousel = document.getElementById('rewards-carousel'); carousel.innerHTML = '';
             const cupones = [{id:'cupon_bienvenida', t:'🎁 BIENVENIDA', g:'Bebida'}, {id:'cupon_cumple', t:'🎂 CUMPLE', g:'Rebanada'}];
             cupones.forEach(c => {
                 if(data[c.id] === "LISTO") {
@@ -180,7 +187,7 @@
             if(userData) {
                 onSnapshot(doc(db, "users", userData), (doc) => { if(doc.exists()) renderApp(doc.data()); });
                 setInterval(() => { if(userData) { getDoc(doc(db, "users", userData)).then(s => { if(s.exists() && s.data().active_pin) renderApp(s.data()); }); } }, 1000);
-            } else { hideLoader(); document.getElementById('register-modal').classList.remove('hidden'); }
+            } else { setTimeout(hideLoader, 1500); document.getElementById('register-modal').classList.remove('hidden'); }
             document.getElementById('btn-register').onclick = () => {
                 const n = document.getElementById('reg-name').value, e = document.getElementById('reg-email').value.toLowerCase().trim(), w = document.getElementById('reg-whatsapp').value;
                 if(n && e && w) {
@@ -192,32 +199,30 @@
         };
     </script>
 </head>
-<body class="min-h-screen flex flex-col items-center p-4">
+<body class="min-h-screen p-4 flex flex-col items-center">
     <div id="loader">
-        <svg class="pizza-loader-svg" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-            <path fill="#e9a124" d="M496.1 404c-11.8 19.3-33 30-55.5 30H71.4c-22.5 0-43.7-10.7-55.5-30-11.8-19.3-11.8-43.4 0-62.7l170.8-278.2c11.8-19.3 33-30 55.5-30s43.7 10.7 55.5 30L496.1 341.3c11.8 19.3 11.8 43.4 0 62.7z"/>
-            <path fill="#f7d692" d="M460 361.3c7.8 12.8 7.8 28.7 0 41.5-7.8 12.8-21.8 19.9-36.8 19.9H88.8c-15 0-29-7.1-36.8-19.9-7.8-12.8-7.8-28.7 0-41.5l146.5-238.6c7.8-12.8 21.8-19.9 36.8-19.9s29 7.1 36.8 19.9L460 361.3z"/>
-            <circle fill="#ee4444" cx="256" cy="340" r="30"/>
-            <circle fill="#ee4444" cx="180" cy="270" r="25"/>
-            <circle fill="#ee4444" cx="332" cy="270" r="25"/>
-            <circle fill="#ee4444" cx="256" cy="200" r="20"/>
-        </svg>
-        <p class="font-bold text-[11px] mt-8 tracking-[0.25em] animate-pulse text-orange-600 uppercase">Cocinando tu perfil</p>
+        <div class="pizza-glow">
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#e9a124" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 11h.01"/><path d="M11 15h.01"/><path d="M16 16h.01"/><path d="m2 16 20 6-6-20A20 20 0 0 0 2 16Z"/><path d="M5.71 17.11a17.04 17.04 0 0 1 11.4-11.4"/></svg>
+        </div>
+        <h2 class="italic-black text-2xl mt-4 tracking-tighter">SLICE DOG</h2>
+        <div class="dot-flashing">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        </div>
+        <p class="text-[9px] font-bold text-orange-500 mt-8 tracking-[0.3em] uppercase opacity-60">Estamos cocinando tu perfil</p>
     </div>
 
     <header class="w-full max-w-md text-center py-8">
-        <h1 class="italic-black text-2xl tracking-tighter">Slice Dog <span class="text-orange-600">Club</span> <span class="text-[8px] text-gray-400 font-bold uppercase">v4.6</span></h1>
+        <h1 class="italic-black text-2xl tracking-tighter">Slice Dog <span class="text-orange-600">Club</span></h1>
     </header>
 
     <main id="main-ui" class="w-full max-w-md hidden">
-        <div class="bg-white rounded-[2.5rem] p-8 text-center shadow-xl mb-6 border-b-8 border-orange-500/10">
+        <div class="bg-white rounded-[2.5rem] p-8 text-center shadow-xl mb-6 border-b-8 border-orange-500/5">
             <p id="user-greeting" class="text-[10px] font-black text-neutral-400 mb-2 tracking-widest uppercase"></p>
             <h2 id="status-title" class="italic-black text-3xl mb-8 leading-none"></h2>
             <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-8"></div>
             <div id="action-btn-container"></div>
         </div>
-
-        <div id="rewards-section" class="w-full overflow-hidden mb-8 transition-all">
+        <div id="rewards-section" class="w-full overflow-hidden mb-8">
             <h3 class="text-[10px] font-black text-neutral-400 mb-3 px-2 tracking-widest uppercase">Premios Especiales</h3>
             <div id="rewards-carousel" class="flex gap-4 overflow-x-auto pb-6 px-2 snap-x scrollbar-hide"></div>
         </div>
@@ -232,11 +237,11 @@
 
     <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
         <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-4 border-orange-400 shadow-2xl">
-            <h2 class="italic-black text-2xl mb-6 leading-none tracking-tighter">Únete al Club</h2>
+            <h2 class="italic-black text-2xl mb-6">Únete al Club</h2>
             <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none">
             <input type="email" id="reg-email" placeholder="Tu Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none">
-            <input type="tel" id="reg-whatsapp" placeholder="Tu WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center border-none">
-            <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black shadow-lg">OBTENER MI PRIMER SELLO</button>
+            <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center border-none">
+            <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black">EMPEZAR AHORA</button>
         </div>
     </div>
 </body>
