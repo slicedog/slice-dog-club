@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Staff | Slice Dog v3.0</title>
+    <title>Staff | Slice Dog v4.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
@@ -18,28 +18,27 @@
 
     <div class="mb-8">
         <h1 class="italic-black text-4xl mb-2">QR <span class="text-orange-500">DINÁMICO</span></h1>
-        <p class="text-[10px] tracking-[0.3em] font-bold opacity-50">VALIDACIÓN ESTRICTA V3.0</p>
+        <p class="text-[10px] tracking-[0.3em] font-bold opacity-50 uppercase">Seguridad Máxima v4.0</p>
     </div>
 
     <div id="qrcode" class="bg-white p-5 rounded-[3.5rem] mb-10"></div>
 
     <div class="bg-white/10 p-6 rounded-[2.5rem] w-full max-w-xs backdrop-blur-md border border-white/10">
-        <div class="flex items-center justify-center gap-3 mb-1">
-            <div class="w-2 h-2 bg-green-500 rounded-full animate-ping"></div>
-            <p class="text-[10px] font-black uppercase tracking-widest opacity-70">Sincronizado</p>
-        </div>
         <p id="timer-display" class="text-orange-400 font-black text-2xl italic">--:--</p>
+        <p class="text-[9px] font-bold opacity-40 uppercase tracking-widest mt-1">Siguiente actualización</p>
     </div>
 
     <script>
-        const SECRET_SALT = "SLICE_DOG_PRO_2026"; 
-        const BLOQUE_TIEMPO_MS = 180000; // 3 Minutos
+        const SECRET_SALT = "SD2026"; // Salt más corto para evitar errores de base64
+        const BLOQUE_TIEMPO_MS = 180000; // 3 Minutos exactos
 
         function updateQR() {
             const now = Date.now();
-            // BLOQUE ABSOLUTO: La clave del éxito
             const intervalAbsoluto = Math.floor(now / BLOQUE_TIEMPO_MS);
-            const token = btoa(SECRET_SALT + intervalAbsoluto).substring(0, 16);
+            
+            // CORRECCIÓN: Ponemos el tiempo AL INICIO y usamos una cadena más larga
+            // Esto hace que el QR cambie visualmente de forma drástica cada 3 min
+            const token = btoa(intervalAbsoluto + "_" + SECRET_SALT);
             
             const qrContainer = document.getElementById('qrcode');
             if (qrContainer.dataset.token !== token) {
@@ -49,9 +48,9 @@
                 qr.addData(token);
                 qr.make();
                 qrContainer.innerHTML = qr.createImgTag(10, 0);
+                console.log("Token Generado (Staff):", token);
             }
 
-            // Cuenta regresiva visual
             const remaining = Math.ceil((BLOQUE_TIEMPO_MS - (now % BLOQUE_TIEMPO_MS)) / 1000);
             const mins = Math.floor(remaining / 60);
             const secs = remaining % 60;
