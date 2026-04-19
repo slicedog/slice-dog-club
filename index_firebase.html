@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slice Dog Club | v3.0</title>
+    <title>Slice Dog Club | v4.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         :root { --sd-mustard: #e9a124; --sd-dark: #4a2311; --sd-bg: #f3e5d0; }
@@ -16,7 +15,6 @@
         .stamp-active { background: linear-gradient(135deg, var(--sd-mustard) 0%, #d48a1a 100%); color: white; border: none; }
         .btn-disabled { background-color: #a3a3a3 !important; opacity: 0.6 !important; cursor: not-allowed !important; pointer-events: none !important; }
         #reader { width: 100% !important; border: none !important; border-radius: 2rem; overflow: hidden; }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
         .coupon-card { min-width: 260px; background: white; border: 2px dashed var(--sd-mustard); border-radius: 1.5rem; padding: 1.5rem; snap-align: center; }
     </style>
 
@@ -36,7 +34,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        const SECRET_SALT = "SLICE_DOG_PRO_2026"; 
+        const SECRET_SALT = "SD2026"; 
         const BLOQUE_TIEMPO_MS = 180000; 
         const COOLDOWN_TIME = 60000;
 
@@ -59,7 +57,7 @@
                     localStorage.setItem("sd_user_email", JSON.stringify(email));
                     location.reload();
                 }
-            } catch (e) { alert("Error"); }
+            } catch (e) { alert("Error al registrar"); }
         }
 
         window.openScanner = (email, currentStamps) => {
@@ -74,22 +72,23 @@
                     await window.closeScanner();
                     btn.classList.add('btn-disabled');
 
-                    const qrLimpio = text.trim();
+                    const scannedText = text.trim();
                     const now = Date.now();
-                    
-                    // Solo permitimos el bloque actual y el anterior (máximo 6 min de vida total)
                     const bloqueActual = Math.floor(now / BLOQUE_TIEMPO_MS);
                     const bloqueAnterior = bloqueActual - 1;
 
-                    const t1 = btoa(SECRET_SALT + bloqueActual).substring(0, 16);
-                    const t2 = btoa(SECRET_SALT + bloqueAnterior).substring(0, 16);
+                    // Generamos los 2 posibles tokens válidos en este momento
+                    const t1 = btoa(bloqueActual + "_" + SECRET_SALT);
+                    const t2 = btoa(bloqueAnterior + "_" + SECRET_SALT);
 
-                    if (qrLimpio === t1 || qrLimpio === t2) {
+                    // COMPARACIÓN LÓGICA
+                    if (scannedText === t1 || scannedText === t2) {
                         localStorage.setItem("sd_last_stamp_time", Date.now());
                         const userRef = doc(db, "users", email);
                         await updateDoc(userRef, { stamps: currentStamps + 1, lastUpdate: new Date() });
                     } else {
-                        alert("❌ CÓDIGO EXPIRADO\nEsa foto ya no es válida. Escanea el código real de la pantalla.");
+                        // Mensaje de depuración para que entiendas por qué falló
+                        alert("❌ CÓDIGO INVÁLIDO O EXPIRADO\n\nEste código fue generado fuera de la ventana de 6 minutos permitida.");
                         btn.classList.remove('btn-disabled'); 
                     }
                 }
@@ -111,7 +110,7 @@
 
             if (currentStamps >= 10 || data.active_pin) {
                 statusEl.innerText = "¡PREMIO LISTO!";
-                btnContainer.innerHTML = `<button id="btn-claim" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black flex flex-col items-center justify-center shadow-lg"><span class="text-xs font-bold mb-1">${data.active_pin ? 'PIN DE CANJE' : 'CANJEAR PREMIO'}</span><span class="text-2xl">${data.active_pin ? data.active_pin : 'OBTENER PIN'}</span></button>`;
+                btnContainer.innerHTML = `<button id="btn-claim" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black flex flex-col items-center justify-center shadow-lg"><span class="text-xs font-bold mb-1">${data.active_pin ? 'PIN DE CANJE' : 'OBTENER PREMIO'}</span><span class="text-2xl">${data.active_pin ? data.active_pin : 'OBTENER PIN'}</span></button>`;
                 if(!data.active_pin) document.getElementById('btn-claim').onclick = () => useCoupon(data.email, 'TABLERO');
             } else {
                 statusEl.innerText = `FALTAN ${10 - currentStamps} PARA PREMIO`;
@@ -159,7 +158,7 @@
 
         async function useCoupon(email, type) {
             const pin = Math.floor(100 + Math.random() * 900);
-            if(confirm(`¿Canjear?\nPIN: ${pin}`)) {
+            if(confirm(`¿Canjear?\nPresenta el PIN al Staff: ${pin}`)) {
                 const userRef = doc(db, "users", email);
                 const updateData = { active_pin: pin };
                 if(type === 'TABLERO') updateData.stamps = 0;
@@ -178,9 +177,8 @@
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
     <header class="w-full max-w-md text-center py-8">
-        <h1 class="italic-black text-2xl tracking-tighter">Slice Dog <span class="text-orange-600">Club</span> <span class="text-[8px] text-gray-400">v3.0</span></h1>
+        <h1 class="italic-black text-2xl tracking-tighter">Slice Dog <span class="text-orange-600">Club</span> <span class="text-[8px] text-gray-400">v4.0</span></h1>
     </header>
-
     <main id="main-ui" class="w-full max-w-md hidden">
         <div class="bg-white rounded-[2.5rem] p-8 text-center shadow-xl mb-6 border-b-8 border-orange-500/10">
             <p id="user-greeting" class="text-[10px] font-black text-neutral-400 mb-2 tracking-widest"></p>
@@ -193,21 +191,19 @@
             <div id="rewards-carousel" class="flex gap-4 overflow-x-auto pb-6 px-2 snap-x scrollbar-hide"></div>
         </div>
     </main>
-
     <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[200] flex flex-col items-center justify-center p-6 hidden">
         <div class="w-full max-w-sm bg-white rounded-[3rem] p-4 text-center">
             <div id="reader"></div>
             <button onclick="closeScanner()" class="mt-4 py-4 text-xs font-black text-neutral-400 uppercase">Cancelar</button>
         </div>
     </div>
-
     <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
         <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-4 border-orange-400">
-            <h2 class="italic-black text-2xl mb-6">Bienvenido</h2>
-            <input type="text" id="reg-name" placeholder="Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center">
-            <input type="email" id="reg-email" placeholder="Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center">
-            <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center">
-            <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black">UNIRSE</button>
+            <h2 class="italic-black text-2xl mb-6 leading-none">Unirse al Club</h2>
+            <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none">
+            <input type="email" id="reg-email" placeholder="Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none">
+            <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center border-none">
+            <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black">OBTENER MI PRIMER SELLO</button>
         </div>
     </div>
 </body>
