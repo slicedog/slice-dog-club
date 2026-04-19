@@ -3,229 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slice Dog | Validación Staff</title>
+    <title>Staff | Generador de Sello Dinámico</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Librería para generación de QR -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        
-        :root { 
-            --sd-mustard: #e9a124; 
-            --sd-terracotta: #a83226; 
-            --sd-dark: #4a2311;
-        }
-
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: var(--sd-dark); 
-            color: white;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            margin: 0;
-        }
-
-        .italic-black {
-            font-weight: 900;
-            font-style: italic;
-            text-transform: uppercase;
-        }
-
-        .qr-container {
-            background: white;
-            padding: 2.5rem;
-            border-radius: 3.5rem;
-            box-shadow: 0 0 60px rgba(233, 161, 36, 0.4);
-        }
-
-        #qrcode img {
-            margin: 0 auto;
-        }
-
-        .pin-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .pin-btn:active {
-            background: var(--sd-mustard);
-            transform: scale(0.92);
-            color: var(--sd-dark);
-        }
-
-        .status-badge {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-        }
-
-        /* Animación suave para cambio de pantallas */
-        .fade-in {
-            animation: fadeIn 0.5s ease-out forwards;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #4a2311; color: white; }
+        .italic-black { font-weight: 900; font-style: italic; text-transform: uppercase; }
+        #qrcode img { display: inline-block; border-radius: 1.5rem; border: 8px solid white; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
     </style>
 </head>
-<body>
+<body class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
 
-    <!-- Pantalla de Bloqueo PIN -->
-    <div id="pin-screen" class="w-full max-w-xs text-center p-6 fade-in">
-        <div class="bg-[var(--sd-mustard)] w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl">
-            <i data-lucide="lock" class="text-white w-10 h-10"></i>
+    <div class="mb-8">
+        <div class="bg-amber-400 text-neutral-900 p-4 rounded-2xl inline-block mb-4 shadow-lg">
+            <i data-lucide="shield-check" class="w-10 h-10"></i>
         </div>
-        <h2 class="italic-black text-2xl mb-2 tracking-tight">Staff Login</h2>
-        <p class="text-white/40 text-[10px] mb-10 uppercase tracking-[0.3em] font-black">Slice Dog Control System</p>
-        
-        <!-- Indicador de PIN -->
-        <div id="pin-display" class="flex justify-center gap-4 mb-10">
-            <div class="w-3 h-3 rounded-full border-2 border-white/20 transition-all duration-300"></div>
-            <div class="w-3 h-3 rounded-full border-2 border-white/20 transition-all duration-300"></div>
-            <div class="w-3 h-3 rounded-full border-2 border-white/20 transition-all duration-300"></div>
-            <div class="w-3 h-3 rounded-full border-2 border-white/20 transition-all duration-300"></div>
-        </div>
-
-        <!-- Teclado Numérico -->
-        <div class="grid grid-cols-3 gap-4">
-            <button onclick="pressKey('1')" class="pin-btn aspect-square rounded-3xl text-2xl font-black">1</button>
-            <button onclick="pressKey('2')" class="pin-btn aspect-square rounded-3xl text-2xl font-black">2</button>
-            <button onclick="pressKey('3')" class="pin-btn aspect-square rounded-3xl text-2xl font-black">3</button>
-            <button onclick="pressKey('4')" class="pin-btn aspect-square rounded-3xl text-2xl font-black">4</button>
-            <button onclick="pressKey('5')" class="pin-btn aspect-square rounded-3xl text-2xl font-black">5</button>
-            <button onclick="pressKey('6')" class="pin-btn aspect-square rounded-3xl text-2xl font-black">6</button>
-            <button onclick="pressKey('7')" class="pin-btn aspect-square rounded-3xl text-2xl font-black">7</button>
-            <button onclick="pressKey('8')" class="pin-btn aspect-square rounded-3xl text-2xl font-black">8</button>
-            <button onclick="pressKey('9')" class="pin-btn aspect-square rounded-3xl text-2xl font-black">9</button>
-            <button onclick="clearPin()" class="pin-btn aspect-square rounded-3xl flex items-center justify-center text-white/30"><i data-lucide="delete"></i></button>
-            <button onclick="pressKey('0')" class="pin-btn aspect-square rounded-3xl text-2xl font-black">0</button>
-            <button onclick="checkPin()" class="bg-[var(--sd-mustard)] aspect-square rounded-3xl flex items-center justify-center shadow-lg text-var(--sd-dark)"><i data-lucide="arrow-right" class="w-8 h-8 font-black"></i></button>
-        </div>
+        <h1 class="italic-black text-3xl">Validación <span class="text-orange-500">Activa</span></h1>
+        <p class="text-xs tracking-widest opacity-50">SISTEMA DINÁMICO CADA 3 MINUTOS</p>
     </div>
 
-    <!-- Pantalla del Generador QR -->
-    <div id="qr-screen" class="w-full max-w-md text-center p-6 hidden fade-in">
-        <header class="mb-12">
-            <div class="bg-[var(--sd-mustard)] w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-xl">
-                <i data-lucide="shield-check" class="text-white w-8 h-8"></i>
-            </div>
-            <h1 class="italic-black text-3xl tracking-tighter">Validación Activa</h1>
-            <p class="text-[var(--sd-mustard)] text-[10px] font-black tracking-[0.4em] uppercase opacity-90">Slice Dog Security</p>
-        </header>
+    <div id="qrcode" class="bg-white p-4 rounded-[2.5rem] mb-8"></div>
 
-        <div class="qr-container mb-12 inline-block border-8 border-white/5">
-            <div id="qrcode"></div>
-        </div>
-
-        <div class="status-badge py-5 px-10 rounded-[2.5rem] inline-block mb-12">
-            <div class="flex items-center gap-3 justify-center mb-1">
-                <span class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.6)]"></span>
-                <span class="italic-black text-lg tracking-widest text-white" id="current-date">-- / -- / ----</span>
-            </div>
-            <p class="text-[9px] text-white/40 font-black uppercase tracking-[0.2em]">Código único para el día de hoy</p>
-        </div>
-
-        <footer class="opacity-30 flex flex-col items-center gap-2">
-            <div class="flex items-center gap-2">
-                <i data-lucide="info" class="w-3 h-3"></i>
-                <span class="text-[9px] font-bold uppercase tracking-widest leading-none">V2.5 Blockchain-Date Validation</span>
-            </div>
-            <button onclick="location.reload()" class="text-[10px] underline uppercase tracking-tighter font-bold mt-4">Cerrar Sesión</button>
-        </footer>
+    <div class="bg-white/10 backdrop-blur-md p-6 rounded-3xl border border-white/20 w-full max-w-xs">
+        <p id="timer-text" class="text-orange-400 font-black text-2xl italic mb-1">Cargando...</p>
+        <p class="text-[10px] uppercase font-bold opacity-60">Para nuevo código QR</p>
     </div>
 
     <script>
-        // --- CONFIGURACIÓN ---
-        const MASTER_PIN = "1234"; // Williams, cambia esto al PIN que prefieras
-        const QR_PREFIX = "SD-";
-        let currentPin = "";
+        const SECRET_SALT = "SliceDog_Super_Secret_2026"; 
 
-        // --- LÓGICA DE PIN ---
-        function pressKey(num) {
-            if (currentPin.length < 4) {
-                currentPin += num;
-                updatePinDisplay();
-                // Si llega a 4, podríamos validar automáticamente, pero el botón 'check' es más seguro
-            }
-        }
-
-        function clearPin() {
-            currentPin = "";
-            updatePinDisplay();
-        }
-
-        function updatePinDisplay() {
-            const dots = document.querySelectorAll('#pin-display div');
-            dots.forEach((dot, i) => {
-                if (i < currentPin.length) {
-                    dot.classList.add('bg-white', 'border-white', 'scale-125');
-                } else {
-                    dot.classList.remove('bg-white', 'border-white', 'scale-125');
-                }
-            });
-        }
-
-        function checkPin() {
-            if (currentPin === MASTER_PIN) {
-                document.getElementById('pin-screen').classList.add('hidden');
-                document.getElementById('qr-screen').classList.remove('hidden');
-                generateQR();
-            } else {
-                // Feedback visual de error
-                const display = document.getElementById('pin-display');
-                display.classList.add('animate-bounce');
-                setTimeout(() => display.classList.remove('animate-bounce'), 500);
-                clearPin();
-            }
-        }
-
-        // --- LÓGICA DE QR DINÁMICO ---
-        function getDailyCode() {
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = String(today.getMonth() + 1).padStart(2, '0');
-            const day = String(today.getDate()).padStart(2, '0');
-            
-            // Actualizar fecha en pantalla
-            document.getElementById('current-date').innerText = `${day} / ${month} / ${year}`;
-            
-            // El código que espera index.html es: SD-YYYY-MM-DD
-            return `${QR_PREFIX}${year}-${month}-${day}`;
-        }
-
-        function generateQR() {
-            const code = getDailyCode();
-            
-            // Limpiar contenedor
-            document.getElementById("qrcode").innerHTML = "";
-            
-            new QRCode(document.getElementById("qrcode"), {
-                text: code,
-                width: 256,
-                height: 256,
-                colorDark : "#4a2311", // Color oscuro de Slice Dog
-                colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.H // Alta corrección para escaneo rápido
-            });
-        }
-
-        // Inicializar iconos
-        window.onload = () => {
-            lucide.createIcons();
-            
-            // Auto-refresh a medianoche si la página se queda abierta
+        function getIntervalToken() {
             const now = new Date();
-            const night = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
-            setTimeout(() => location.reload(), night.getTime() - now.getTime());
-        };
+            const minutes = now.getMinutes();
+            // Esta es la magia: dividimos los 60 min entre 3. 
+            // Solo cambia cuando el resultado de la división entera cambia.
+            const interval = Math.floor(minutes / 3); 
+            const timeString = `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}-${now.getHours()}-${interval}`;
+            return btoa(SECRET_SALT + timeString).substring(0, 12); 
+        }
+
+        function updateUI() {
+            const token = getIntervalToken();
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = "";
+            const qr = qrcode(0, 'H');
+            qr.addData(token);
+            qr.make();
+            qrContainer.innerHTML = qr.createImgTag(10, 0);
+
+            // Calcular cuánto falta para el siguiente bloque de 3 minutos
+            const now = new Date();
+            const secondsInCurrentInterval = (now.getMinutes() % 3) * 60 + now.getSeconds();
+            const remaining = 180 - secondsInCurrentInterval;
+            
+            const mins = Math.floor(remaining / 60);
+            const secs = remaining % 60;
+            document.getElementById('timer-text').innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        setInterval(updateUI, 1000);
+        updateUI();
+        lucide.createIcons();
     </script>
 </body>
 </html>
