@@ -3,19 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slice Dog Club | v4.1 PRO</title>
+    <title>Slice Dog Club | v4.2 PRO</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         :root { --sd-mustard: #e9a124; --sd-dark: #4a2311; --sd-bg: #f3e5d0; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); color: var(--sd-dark); margin: 0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); color: var(--sd-dark); margin: 0; overflow-x: hidden; }
         .italic-black { font-weight: 900; font-style: italic; text-transform: uppercase; }
         .stamp-active { background: linear-gradient(135deg, var(--sd-mustard) 0%, #d48a1a 100%); color: white; border: none; }
         .btn-disabled { background-color: #a3a3a3 !important; opacity: 0.6 !important; cursor: not-allowed !important; pointer-events: none !important; }
         #reader { width: 100% !important; border: none !important; border-radius: 2rem; overflow: hidden; }
         .coupon-card { min-width: 260px; background: white; border: 2px dashed var(--sd-mustard); border-radius: 1.5rem; padding: 1.5rem; snap-align: center; }
+        .locked-ui { opacity: 0.4; pointer-events: none; grayscale: 100%; filter: grayscale(1); }
     </style>
 
     <script type="module">
@@ -36,7 +37,7 @@
 
         const SECRET_SALT = "SD2026"; 
         const BLOQUE_TIEMPO_MS = 180000; 
-        const COOLDOWN_TIME = 60000; // 1 minuto de bloqueo tras sellar
+        const COOLDOWN_TIME = 60000; 
 
         let userData = JSON.parse(localStorage.getItem("sd_user_email"));
         let html5QrCode;
@@ -58,7 +59,7 @@
                     localStorage.setItem("sd_user_email", JSON.stringify(email));
                     location.reload();
                 }
-            } catch (e) { alert("Error al registrar"); }
+            } catch (e) { alert("Error"); }
         }
 
         // --- ESCÁNER ---
@@ -73,15 +74,14 @@
                     const scannedText = text.trim();
                     const now = Date.now();
                     const b1 = Math.floor(now / BLOQUE_TIEMPO_MS);
-                    const b2 = b1 - 1;
                     const t1 = btoa(b1 + "_" + SECRET_SALT);
-                    const t2 = btoa(b2 + "_" + SECRET_SALT);
+                    const t2 = btoa((b1 - 1) + "_" + SECRET_SALT);
 
                     if (scannedText === t1 || scannedText === t2) {
                         localStorage.setItem("sd_last_stamp_time", Date.now());
                         await updateDoc(doc(db, "users", email), { stamps: currentStamps + 1, lastUpdate: new Date() });
                     } else {
-                        alert("❌ QR EXPIRADO\nEscanea el código actualizado en la pantalla.");
+                        alert("❌ QR EXPIRADO");
                     }
                 }
             ).catch(e => console.error(e));
@@ -92,32 +92,35 @@
             document.getElementById('scanner-modal').classList.add('hidden');
         };
 
-        // --- CANJE CON AUTO-RESTAURACIÓN ---
-      async function useCoupon(email, type) {
-    // NUEVO: Verificamos si ya existe un PIN activo en los datos locales antes de proceder
-    // Esto evita que se generen múltiples PINs seguidos
-    const userRef = doc(db, "users", email);
-    const snap = await getDoc(userRef);
-    
-    if (snap.exists() && snap.data().active_pin) {
-        alert("⚠️ YA TIENES UN CANJE EN PROCESO\nDebes terminar el canje actual o esperar a que expire antes de solicitar otro.");
-        return;
-    }
+        // --- CANJE (CON BLOQUEO ANTI-MULTIPLE) ---
+        async function useCoupon(email, type) {
+            // BLOQUEO 1: Verificación de seguridad inmediata
+            const userRef = doc(db, "users", email);
+            const snap = await getDoc(userRef);
+            if (snap.exists() && snap.data().active_pin) {
+                alert("⚠️ YA TIENES UN CANJE ACTIVO");
+                return;
+            }
 
-    const pin = Math.floor(100 + Math.random() * 900);
-    if(confirm(`¿Generar PIN de canje?\nTienes 5 minutos para que el Staff lo valide.`)) {
-        const updateData = { 
-            active_pin: pin, 
-            pin_type: type, 
-            pin_timestamp: Date.now() 
-        };
-        if(type === 'TABLERO') updateData.stamps = 0;
-        else updateData[type] = "PROCESANDO"; 
-        await updateDoc(userRef, updateData);
-    }
-}
+            const pin = Math.floor(100 + Math.random() * 900);
+            if(confirm(`¿Generar PIN de canje?\nTienes 5 minutos.`)) {
+                try {
+                    const updateData = { 
+                        active_pin: pin, 
+                        pin_type: type, 
+                        pin_timestamp: Date.now() 
+                    };
+                    if(type === 'TABLERO') updateData.stamps = 0;
+                    else updateData[type] = "PROCESANDO";
+                    
+                    await updateDoc(userRef, updateData);
+                } catch (e) {
+                    alert("Error en el canje.");
+                }
+            }
+        }
 
-        // --- RENDERIZADO PRINCIPAL ---
+        // --- RENDERIZADO ---
         function renderApp(data) {
             document.getElementById('register-modal').classList.add('hidden');
             document.getElementById('main-ui').classList.remove('hidden');
@@ -125,15 +128,15 @@
             
             const statusEl = document.getElementById('status-title');
             const btnContainer = document.getElementById('action-btn-container');
+            const rewardsSection = document.getElementById('rewards-section');
 
-            // LÓGICA DE PIN ACTIVO / EXPIRACIÓN
+            // LÓGICA DE PIN / EXPIRACIÓN
             if (data.active_pin) {
                 const ahora = Date.now();
                 const transcurrido = ahora - (data.pin_timestamp || 0);
-                const limite = 5 * 60 * 1000; // 5 minutos
+                const limite = 5 * 60 * 1000;
 
                 if (transcurrido > limite) {
-                    // AUTO-RESTAURAR: El tiempo pasó
                     const userRef = doc(db, "users", data.email);
                     const reset = { active_pin: null, pin_timestamp: null, pin_type: null };
                     if(data.pin_type === 'TABLERO') reset.stamps = 10;
@@ -142,22 +145,26 @@
                     return;
                 }
 
+                // UI CON PIN ACTIVO
                 const restantes = Math.ceil((limite - transcurrido) / 1000);
-                const m = Math.floor(restantes / 60);
-                const s = restantes % 60;
-
                 statusEl.innerText = "MUESTRA EL PIN";
                 btnContainer.innerHTML = `
                     <div class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black flex flex-col items-center justify-center shadow-lg animate-pulse">
                         <span class="text-4xl tracking-[0.3em] ml-3">${data.active_pin}</span>
-                        <span class="text-[10px] mt-2 opacity-80 uppercase font-bold">Expira en ${m}:${s < 10 ? '0' : ''}${s}</span>
+                        <span class="text-[10px] mt-2 opacity-80 uppercase font-bold text-center px-4">EXPIRA EN ${Math.floor(restantes/60)}:${(restantes%60).toString().padStart(2,'0')}</span>
                     </div>`;
+                
+                // BLOQUEO 2: Desactivamos visualmente los cupones extra
+                rewardsSection.classList.add('locked-ui');
+
             } else {
-                // FLUJO NORMAL (SIN PIN)
+                // UI NORMAL
+                rewardsSection.classList.remove('locked-ui');
                 const currentStamps = data.stamps || 0;
+                
                 if (currentStamps >= 10) {
                     statusEl.innerText = "¡PREMIO LISTO!";
-                    btnContainer.innerHTML = `<button id="btn-claim" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black shadow-lg uppercase">Obtener PIN de Canje</button>`;
+                    btnContainer.innerHTML = `<button id="btn-claim" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black shadow-lg">OBTENER PIN</button>`;
                     document.getElementById('btn-claim').onclick = () => useCoupon(data.email, 'TABLERO');
                 } else {
                     statusEl.innerText = `FALTAN ${10 - currentStamps} PARA PREMIO`;
@@ -179,37 +186,24 @@
                 }
             }
 
-            // Cupones extra
-            // ... dentro de renderApp(data) ...
-const carousel = document.getElementById('rewards-carousel');
-carousel.innerHTML = '';
-
-const cupones = [
-    {id:'cupon_bienvenida', t:'🎁 BIENVENIDA', g:'Bebida'},
-    {id:'cupon_cumple', t:'🎂 CUMPLE', g:'Rebanada'}
-];
-
-cupones.forEach(c => {
-    if(data[c.id] === "LISTO") {
-        const card = document.createElement('div');
-        card.className = 'coupon-card text-center';
-        
-        // CAMBIO: Si hay un active_pin, desactivamos el botón visualmente
-        const isBusy = data.active_pin ? 'opacity-20 pointer-events-none' : '';
-        
-        card.innerHTML = `
-            <p class="text-[9px] font-black text-orange-500 mb-1 uppercase">${c.t}</p>
-            <h4 class="italic-black text-lg mb-4 uppercase">${c.g} GRATIS</h4>
-            <button class="w-full py-3 bg-black text-white rounded-xl text-[10px] font-black uppercase ${isBusy}">
-                ${data.active_pin ? 'Bloqueado' : 'Canjear'}
-            </button>`;
-        
-        if(!data.active_pin) {
-            card.querySelector('button').onclick = () => useCoupon(data.email, c.id);
+            // CARRUSEL DE PREMIOS
+            const carousel = document.getElementById('rewards-carousel');
+            carousel.innerHTML = '';
+            const cupones = [
+                {id:'cupon_bienvenida', t:'🎁 BIENVENIDA', g:'Bebida'},
+                {id:'cupon_cumple', t:'🎂 CUMPLE', g:'Rebanada'}
+            ];
+            cupones.forEach(c => {
+                if(data[c.id] === "LISTO") {
+                    const card = document.createElement('div');
+                    card.className = 'coupon-card text-center';
+                    card.innerHTML = `<p class="text-[9px] font-black text-orange-500 mb-1 uppercase">${c.t}</p><h4 class="italic-black text-lg mb-4 uppercase">${c.g} GRATIS</h4><button class="w-full py-3 bg-black text-white rounded-xl text-[10px] font-black uppercase">Canjear</button>`;
+                    card.querySelector('button').onclick = () => useCoupon(data.email, c.id);
+                    carousel.appendChild(card);
+                }
+            });
+            lucide.createIcons();
         }
-        carousel.appendChild(card);
-    }
-});
 
         function startCooldownTimer(remainingMs) {
             const btn = document.getElementById('btn-scan');
@@ -226,11 +220,9 @@ cupones.forEach(c => {
         window.onload = () => {
             if(userData) {
                 onSnapshot(doc(db, "users", userData), (doc) => { if(doc.exists()) renderApp(doc.data()); });
-                // Refresco visual cada segundo para el contador del PIN
                 setInterval(() => {
-                    const email = JSON.parse(localStorage.getItem("sd_user_email"));
-                    if(email) {
-                        getDoc(doc(db, "users", email)).then(s => { if(s.exists() && s.data().active_pin) renderApp(s.data()); });
+                    if(userData) {
+                        getDoc(doc(db, "users", userData)).then(s => { if(s.exists() && s.data().active_pin) renderApp(s.data()); });
                     }
                 }, 1000);
             } else {
@@ -243,7 +235,7 @@ cupones.forEach(c => {
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
     <header class="w-full max-w-md text-center py-8">
-        <h1 class="italic-black text-2xl tracking-tighter">Slice Dog <span class="text-orange-600">Club</span> <span class="text-[8px] text-gray-400">v4.1</span></h1>
+        <h1 class="italic-black text-2xl tracking-tighter">Slice Dog <span class="text-orange-600">Club</span> <span class="text-[8px] text-gray-400">v4.2</span></h1>
     </header>
 
     <main id="main-ui" class="w-full max-w-md hidden">
@@ -254,7 +246,7 @@ cupones.forEach(c => {
             <div id="action-btn-container"></div>
         </div>
 
-        <div class="w-full overflow-hidden mb-8">
+        <div id="rewards-section" class="w-full overflow-hidden mb-8 transition-all duration-500">
             <h3 class="text-[10px] font-black text-neutral-400 mb-3 px-2 tracking-widest uppercase">Premios Especiales</h3>
             <div id="rewards-carousel" class="flex gap-4 overflow-x-auto pb-6 px-2 snap-x scrollbar-hide"></div>
         </div>
@@ -263,16 +255,16 @@ cupones.forEach(c => {
     <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[200] flex flex-col items-center justify-center p-6 hidden">
         <div class="w-full max-w-sm bg-white rounded-[3rem] p-4 text-center">
             <div id="reader"></div>
-            <button onclick="closeScanner()" class="mt-4 py-4 text-xs font-black text-neutral-400 uppercase tracking-widest">Cancelar Escaneo</button>
+            <button onclick="closeScanner()" class="mt-4 py-4 text-xs font-black text-neutral-400 uppercase">Cancelar</button>
         </div>
     </div>
 
     <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
         <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-4 border-orange-400 shadow-2xl">
-            <h2 class="italic-black text-2xl mb-6 leading-none">Bienvenido al<br>Club</h2>
+            <h2 class="italic-black text-2xl mb-6 leading-none">Bienvenido al Club</h2>
             <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none">
             <input type="email" id="reg-email" placeholder="Tu Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none">
-            <input type="tel" id="reg-whatsapp" placeholder="Tu WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center border-none">
+            <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center border-none">
             <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black shadow-lg">OBTENER MI PRIMER SELLO</button>
         </div>
     </div>
