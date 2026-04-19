@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slice Dog Club | Fidelidad</title>
+    <title>Slice Dog Club | v3.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -24,7 +24,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // CONFIGURACIÓN DE TU FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyAFwDQVPy4xRjw4rxcKcZEwNx1suV7eWW8",
             authDomain: "slice-dog-test-firebase.firebaseapp.com",
@@ -37,21 +36,18 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- BLOQUE DE SEGURIDAD (SINCRONIZADO CON STAFF.HTML) ---
         const SECRET_SALT = "SLICE_DOG_PRO_2026"; 
-        const BLOQUE_TIEMPO_MS = 3 * 60 * 1000; // 3 Minutos
-        const COOLDOWN_TIME = 60000; // 1 Minuto de espera entre sellos
+        const BLOQUE_TIEMPO_MS = 180000; 
+        const COOLDOWN_TIME = 60000;
 
         let userData = JSON.parse(localStorage.getItem("sd_user_email"));
         let html5QrCode;
 
-        // --- REGISTRO ---
         async function registerUser() {
             const name = document.getElementById('reg-name').value;
             const email = document.getElementById('reg-email').value.toLowerCase().trim();
             const wa = document.getElementById('reg-whatsapp').value;
             if(!name || !email || !wa) return alert("Completa los datos");
-            
             try {
                 const userRef = doc(db, "users", email);
                 const userSnap = await getDoc(userRef);
@@ -63,10 +59,9 @@
                     localStorage.setItem("sd_user_email", JSON.stringify(email));
                     location.reload();
                 }
-            } catch (e) { alert("Error al registrar"); }
+            } catch (e) { alert("Error"); }
         }
 
-        // --- ESCÁNER Y VALIDACIÓN ---
         window.openScanner = (email, currentStamps) => {
             const btn = document.getElementById('btn-scan');
             if(btn.classList.contains('btn-disabled')) return;
@@ -79,25 +74,22 @@
                     await window.closeScanner();
                     btn.classList.add('btn-disabled');
 
-                    const nowTime = new Date().getTime();
+                    const qrLimpio = text.trim();
+                    const now = Date.now();
                     
-                    // Función para calcular tokens basados en bloques absolutos de 3 min
-                    const getT = (offsetMs) => {
-                        const targetTime = nowTime + offsetMs;
-                        const intervalAbsoluto = Math.floor(targetTime / BLOQUE_TIEMPO_MS);
-                        // Substring de 16 caracteres para coincidir con el Staff
-                        return btoa(SECRET_SALT + intervalAbsoluto).substring(0, 16);
-                    };
+                    // Solo permitimos el bloque actual y el anterior (máximo 6 min de vida total)
+                    const bloqueActual = Math.floor(now / BLOQUE_TIEMPO_MS);
+                    const bloqueAnterior = bloqueActual - 1;
 
-                    // Validamos 3 bloques: el actual, el de hace 3 min y el de dentro de 3 min
-                    const tokensValidos = [getT(0), getT(-BLOQUE_TIEMPO_MS), getT(BLOQUE_TIEMPO_MS)];
+                    const t1 = btoa(SECRET_SALT + bloqueActual).substring(0, 16);
+                    const t2 = btoa(SECRET_SALT + bloqueAnterior).substring(0, 16);
 
-                    if (tokensValidos.includes(text)) {
+                    if (qrLimpio === t1 || qrLimpio === t2) {
                         localStorage.setItem("sd_last_stamp_time", Date.now());
                         const userRef = doc(db, "users", email);
                         await updateDoc(userRef, { stamps: currentStamps + 1, lastUpdate: new Date() });
                     } else {
-                        alert("⚠️ CÓDIGO EXPIRADO\nPor favor, escanea el QR actualizado en la pantalla del local.");
+                        alert("❌ CÓDIGO EXPIRADO\nEsa foto ya no es válida. Escanea el código real de la pantalla.");
                         btn.classList.remove('btn-disabled'); 
                     }
                 }
@@ -109,37 +101,26 @@
             document.getElementById('scanner-modal').classList.add('hidden');
         };
 
-        // --- RENDERIZADO DE INTERFAZ ---
         function renderApp(data) {
             document.getElementById('register-modal').classList.add('hidden');
             document.getElementById('main-ui').classList.remove('hidden');
             document.getElementById('user-greeting').innerText = `HOLA, ${data.name} 🍕`;
-
             const currentStamps = data.stamps || 0;
             const statusEl = document.getElementById('status-title');
             const btnContainer = document.getElementById('action-btn-container');
 
             if (currentStamps >= 10 || data.active_pin) {
                 statusEl.innerText = "¡PREMIO LISTO!";
-                btnContainer.innerHTML = `
-                    <button id="btn-claim" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black flex flex-col items-center justify-center shadow-lg">
-                        <span class="text-xs font-bold mb-1">${data.active_pin ? 'PIN DE CANJE' : 'CANJEAR REBANADA GRATIS'}</span>
-                        <span class="text-2xl">${data.active_pin ? data.active_pin : 'OBTENER PIN'}</span>
-                    </button>`;
+                btnContainer.innerHTML = `<button id="btn-claim" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black flex flex-col items-center justify-center shadow-lg"><span class="text-xs font-bold mb-1">${data.active_pin ? 'PIN DE CANJE' : 'CANJEAR PREMIO'}</span><span class="text-2xl">${data.active_pin ? data.active_pin : 'OBTENER PIN'}</span></button>`;
                 if(!data.active_pin) document.getElementById('btn-claim').onclick = () => useCoupon(data.email, 'TABLERO');
             } else {
                 statusEl.innerText = `FALTAN ${10 - currentStamps} PARA PREMIO`;
-                btnContainer.innerHTML = `<button id="btn-scan" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg"><i data-lucide="qr-code"></i> ¡SOLICITAR SELLO!</button>`;
-                
+                btnContainer.innerHTML = `<button id="btn-scan" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg"><i data-lucide="qr-code"></i> SOLICITAR SELLO</button>`;
                 const lastS = localStorage.getItem("sd_last_stamp_time");
-                if (lastS && (Date.now() - lastS < COOLDOWN_TIME)) {
-                    startCooldownTimer(COOLDOWN_TIME - (Date.now() - lastS));
-                } else {
-                    document.getElementById('btn-scan').onclick = () => openScanner(data.email, currentStamps);
-                }
+                if (lastS && (Date.now() - lastS < COOLDOWN_TIME)) startCooldownTimer(COOLDOWN_TIME - (Date.now() - lastS));
+                else document.getElementById('btn-scan').onclick = () => openScanner(data.email, currentStamps);
             }
 
-            // Grid de sellos
             const grid = document.getElementById('stamps-grid');
             grid.innerHTML = '';
             for(let i=0; i<10; i++) {
@@ -150,18 +131,13 @@
                 grid.appendChild(slot);
             }
 
-            // Cupones extra
             const carousel = document.getElementById('rewards-carousel');
             carousel.innerHTML = '';
-            const catalog = [
-                { id: 'cupon_bienvenida', title: '🎁 BIENVENIDA', gift: 'Bebida Gratis', status: data.cupon_bienvenida },
-                { id: 'cupon_cumple', title: '🎂 CUMPLE', gift: 'Rebanada Gratis', status: data.cupon_cumple }
-            ];
-            catalog.forEach(c => {
-                if(c.status === "LISTO") {
+            [{id:'cupon_bienvenida', t:'🎁 BIENVENIDA', g:'Bebida'}, {id:'cupon_cumple', t:'🎂 CUMPLE', g:'Rebanada'}].forEach(c => {
+                if(data[c.id] === "LISTO") {
                     const card = document.createElement('div');
                     card.className = 'coupon-card text-center';
-                    card.innerHTML = `<p class="text-[9px] font-bold uppercase text-orange-500 mb-1">${c.title}</p><h4 class="italic-black text-lg mb-4">${c.gift}</h4><button class="w-full py-3 bg-black text-white rounded-xl text-[10px] font-black uppercase">Canjear</button>`;
+                    card.innerHTML = `<p class="text-[9px] font-black text-orange-500 mb-1">${c.t}</p><h4 class="italic-black text-lg mb-4">${c.g}</h4><button class="w-full py-3 bg-black text-white rounded-xl text-[10px] font-black uppercase">Canjear</button>`;
                     card.querySelector('button').onclick = () => useCoupon(data.email, c.id);
                     carousel.appendChild(card);
                 }
@@ -183,7 +159,7 @@
 
         async function useCoupon(email, type) {
             const pin = Math.floor(100 + Math.random() * 900);
-            if(confirm(`¿Canjear?\nMuestra este PIN al Staff: ${pin}`)) {
+            if(confirm(`¿Canjear?\nPIN: ${pin}`)) {
                 const userRef = doc(db, "users", email);
                 const updateData = { active_pin: pin };
                 if(type === 'TABLERO') updateData.stamps = 0;
@@ -201,41 +177,38 @@
     </script>
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
-
     <header class="w-full max-w-md text-center py-8">
-        <h1 class="italic-black text-2xl tracking-tighter text-neutral-800">Slice Dog <span class="text-orange-600">Club</span> <span class="text-[10px] text-gray-400">v3.0</span></h1>
+        <h1 class="italic-black text-2xl tracking-tighter">Slice Dog <span class="text-orange-600">Club</span> <span class="text-[8px] text-gray-400">v3.0</span></h1>
     </header>
 
     <main id="main-ui" class="w-full max-w-md hidden">
         <div class="bg-white rounded-[2.5rem] p-8 text-center shadow-xl mb-6 border-b-8 border-orange-500/10">
-            <p id="user-greeting" class="text-[10px] font-black uppercase text-neutral-400 mb-2 tracking-widest"></p>
+            <p id="user-greeting" class="text-[10px] font-black text-neutral-400 mb-2 tracking-widest"></p>
             <h2 id="status-title" class="italic-black text-3xl mb-8 leading-none"></h2>
             <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-10"></div>
             <div id="action-btn-container"></div>
         </div>
-
         <div class="w-full overflow-hidden mb-8">
-            <h3 class="text-[10px] font-black uppercase text-neutral-400 mb-3 px-2 tracking-widest">Premios Disponibles</h3>
+            <h3 class="text-[10px] font-black text-neutral-400 mb-3 px-2 tracking-widest uppercase">Premios</h3>
             <div id="rewards-carousel" class="flex gap-4 overflow-x-auto pb-6 px-2 snap-x scrollbar-hide"></div>
         </div>
     </main>
 
-    <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[200] flex flex-col items-center justify-center p-6 hidden text-center">
-        <div class="w-full max-w-sm bg-white rounded-[3rem] p-4 relative">
+    <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[200] flex flex-col items-center justify-center p-6 hidden">
+        <div class="w-full max-w-sm bg-white rounded-[3rem] p-4 text-center">
             <div id="reader"></div>
-            <button onclick="closeScanner()" class="mt-4 py-4 text-xs font-black uppercase text-neutral-400">Cancelar</button>
+            <button onclick="closeScanner()" class="mt-4 py-4 text-xs font-black text-neutral-400 uppercase">Cancelar</button>
         </div>
     </div>
 
     <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
-        <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-4 border-[var(--sd-mustard)] shadow-2xl">
-            <h2 class="italic-black text-2xl mb-6 text-neutral-900 leading-none">Únete al<br>Club</h2>
-            <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none">
-            <input type="email" id="reg-email" placeholder="Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none">
-            <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center border-none">
-            <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black shadow-lg">OBTENER MI PRIMER SELLO</button>
+        <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-4 border-orange-400">
+            <h2 class="italic-black text-2xl mb-6">Bienvenido</h2>
+            <input type="text" id="reg-name" placeholder="Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center">
+            <input type="email" id="reg-email" placeholder="Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center">
+            <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center">
+            <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black">UNIRSE</button>
         </div>
     </div>
-
 </body>
 </html>
