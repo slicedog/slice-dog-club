@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slice Dog Club | Blindado</title>
+    <title>Slice Dog Club | Cliente Seguro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -18,12 +18,12 @@
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         #reader { width: 100% !important; border: none !important; border-radius: 2rem; overflow: hidden; }
         
-        /* BLOQUEO TOTAL */
+        /* BLOQUEO VISUAL DEL BOTÓN */
         .btn-disabled { 
-            background-color: #737373 !important; 
-            opacity: 0.5 !important; 
+            background-color: #a3a3a3 !important; 
+            opacity: 0.6 !important; 
+            cursor: not-allowed !important; 
             pointer-events: none !important; 
-            user-select: none !important;
         }
     </style>
 
@@ -31,6 +31,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+        // CONFIGURACIÓN DE TU FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyAFwDQVPy4xRjw4rxcKcZEwNx1suV7eWW8",
             authDomain: "slice-dog-test-firebase.firebaseapp.com",
@@ -43,9 +44,12 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // CONFIGURACIÓN DE SEGURIDAD
+        const SECRET_SALT = "SliceDog_Super_Secret_2026"; // IGUAL QUE EN STAFF.HTML
+        const COOLDOWN_TIME = 60000; // 1 minuto de bloqueo entre sellos
+
         let userData = JSON.parse(localStorage.getItem("sd_user_email"));
         let html5QrCode;
-        const COOLDOWN_TIME = 60000; 
 
         // --- REGISTRO ---
         async function registerUser() {
@@ -70,19 +74,8 @@
             } catch (e) { btn.disabled = false; }
         }
 
-        // --- SISTEMA DE SELLADO ANTIFRAUDE ---
+        // --- SELLADO ---
         async function addStamp(email, currentStamps) {
-            // BLOQUEO INSTANTÁNEO LOCAL (Antes de ir a Firebase)
-            const now = Date.now();
-            localStorage.setItem("sd_last_stamp_time", now);
-            
-            // Desactivar UI inmediatamente
-            const btn = document.getElementById('btn-scan');
-            if(btn) {
-                btn.classList.add('btn-disabled');
-                startCooldownTimer(COOLDOWN_TIME);
-            }
-
             try {
                 const userRef = doc(db, "users", email);
                 await updateDoc(userRef, { 
@@ -90,35 +83,69 @@
                     lastUpdate: new Date() 
                 });
             } catch (e) {
-                console.error("Error al sellar", e);
-                // Si falla, el onSnapshot refrescará la UI, pero el tiempo ya está corriendo
+                console.error("Error al guardar sello", e);
             }
         }
 
         function startCooldownTimer(remainingMs) {
             const btn = document.getElementById('btn-scan');
             if(!btn) return;
-            
             btn.classList.add('btn-disabled');
-            btn.onclick = null; // Quita el evento por seguridad extra
-            
             let seconds = Math.ceil(remainingMs / 1000);
             const interval = setInterval(() => {
                 seconds--;
-                if(btn) {
-                    btn.innerHTML = `<i data-lucide="clock" class="w-4"></i> ESPERA (${seconds}s)`;
-                    lucide.createIcons();
-                }
+                btn.innerHTML = `<i data-lucide="clock" class="w-4"></i> ESPERA (${seconds}s)`;
+                lucide.createIcons();
                 if (seconds <= 0) {
                     clearInterval(interval);
-                    location.reload(); // Recarga para limpiar el estado y reactivar
+                    location.reload(); 
                 }
             }, 1000);
         }
 
+        window.openScanner = (email, currentStamps) => {
+            const btn = document.getElementById('btn-scan');
+            if(btn.classList.contains('btn-disabled')) return;
+
+            document.getElementById('scanner-modal').classList.remove('hidden');
+            html5QrCode = new Html5Qrcode("reader");
+
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, 
+                async (text) => {
+                    await window.closeScanner();
+                    
+                    // BLOQUEO INSTANTÁNEO LOCAL
+                    btn.classList.add('btn-disabled');
+                    localStorage.setItem("sd_last_stamp_time", Date.now());
+
+                    // CÁLCULO DE TOKENS (TOLERANCIA DE 3 MINUTOS)
+                    const now = new Date();
+                    const prev = new Date(now.getTime() - (3 * 60 * 1000));
+
+                    const getT = (d) => {
+                        const interval = Math.floor(d.getMinutes() / 3);
+                        const s = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}-${d.getHours()}-${interval}`;
+                        return btoa(SECRET_SALT + s).substring(0, 12);
+                    };
+
+                    if (text === getT(now) || text === getT(prev)) {
+                        addStamp(email, currentStamps);
+                    } else {
+                        alert("¡QR EXPIRADO O INVÁLIDO! Por favor escanea el código actual en el mostrador.");
+                        location.reload();
+                    }
+                }
+            ).catch(e => console.error(e));
+        };
+
+        window.closeScanner = async () => {
+            if(html5QrCode) { await html5QrCode.stop(); html5QrCode = null; }
+            document.getElementById('scanner-modal').classList.add('hidden');
+        };
+
         async function useCoupon(email, type) {
             const pin = Math.floor(100 + Math.random() * 900);
-            if(confirm(`¿Canjear?\nDicta el PIN: ${pin}`)) {
+            if(confirm(`¿Canjear?\nPIN staff: ${pin}`)) {
                 const userRef = doc(db, "users", email);
                 const updateData = { active_pin: pin };
                 if(type === 'TABLERO') updateData.stamps = 0;
@@ -138,27 +165,26 @@
 
             if (currentStamps >= 10 || data.active_pin) {
                 statusEl.innerText = "¡PREMIO LISTO!";
-                statusEl.classList.add("text-orange-600", "animate-pulse");
+                statusEl.classList.add("text-orange-600");
                 btnContainer.innerHTML = `
                     <button id="btn-claim" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black flex flex-col items-center justify-center shadow-lg ${!data.active_pin ? 'animate-bounce' : ''}">
-                        <span class="text-xs font-bold uppercase">${data.active_pin ? 'PIN DE CANJE' : '¡LO LOGRASTE!'}</span>
-                        <span class="text-2xl">${data.active_pin ? data.active_pin : 'CANJEAR PIZZA GRATIS'}</span>
+                        <span class="text-xs font-bold mb-1">${data.active_pin ? 'PIN DE CANJE' : '¡TIENES PIZZA GRATIS!'}</span>
+                        <span class="text-2xl">${data.active_pin ? data.active_pin : 'CANJEAR AHORA'}</span>
                     </button>`;
                 if(!data.active_pin) document.getElementById('btn-claim').onclick = () => useCoupon(data.email, 'TABLERO');
             } else {
                 statusEl.innerText = `FALTAN ${10 - currentStamps} PARA PREMIO`;
                 btnContainer.innerHTML = `<button id="btn-scan" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg"><i data-lucide="qr-code"></i> ¡SOLICITAR SELLO!</button>`;
                 
-                const lastStamp = localStorage.getItem("sd_last_stamp_time");
-                const timePassed = Date.now() - (lastStamp || 0);
-                
-                if (lastStamp && timePassed < COOLDOWN_TIME) {
-                    startCooldownTimer(COOLDOWN_TIME - timePassed);
+                const lastS = localStorage.getItem("sd_last_stamp_time");
+                if (lastS && (Date.now() - lastS < COOLDOWN_TIME)) {
+                    startCooldownTimer(COOLDOWN_TIME - (Date.now() - lastS));
                 } else {
                     document.getElementById('btn-scan').onclick = () => openScanner(data.email, currentStamps);
                 }
             }
 
+            // DIBUJAR SELLOS
             const grid = document.getElementById('stamps-grid');
             grid.innerHTML = '';
             for(let i=0; i<10; i++) {
@@ -169,9 +195,13 @@
                 grid.appendChild(slot);
             }
 
+            // DIBUJAR CUPONES
             const carousel = document.getElementById('rewards-carousel');
             carousel.innerHTML = '';
-            const catalog = [{ id: 'cupon_bienvenida', title: '🎁 BIENVENIDA', gift: 'Bebida Gratis', status: data.cupon_bienvenida }, { id: 'cupon_cumple', title: '🎂 CUMPLE', gift: 'Rebanada Gratis', status: data.cupon_cumple }];
+            const catalog = [
+                { id: 'cupon_bienvenida', title: '🎁 BIENVENIDA', gift: 'Bebida Gratis', status: data.cupon_bienvenida },
+                { id: 'cupon_cumple', title: '🎂 CUMPLE', gift: 'Rebanada Gratis', status: data.cupon_cumple }
+            ];
             catalog.forEach(c => {
                 if(c.status === "LISTO") {
                     const card = document.createElement('div');
@@ -184,24 +214,6 @@
             lucide.createIcons();
         }
 
-        window.openScanner = (email, currentStamps) => {
-            const btn = document.getElementById('btn-scan');
-            if(btn.classList.contains('btn-disabled')) return;
-            document.getElementById('scanner-modal').classList.remove('hidden');
-            html5QrCode = new Html5Qrcode("reader");
-            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, async (text) => {
-                if(text.includes("SD-") || text === "SLICE_DOG_STAMP") {
-                    await window.closeScanner();
-                    addStamp(email, currentStamps);
-                }
-            }).catch(e => console.error(e));
-        };
-
-        window.closeScanner = async () => {
-            if(html5QrCode) { await html5QrCode.stop(); html5QrCode = null; }
-            document.getElementById('scanner-modal').classList.add('hidden');
-        };
-
         window.onload = () => {
             if(userData) onSnapshot(doc(db, "users", userData), (doc) => { if(doc.exists()) renderApp(doc.data()); });
             else document.getElementById('register-modal').classList.remove('hidden');
@@ -211,18 +223,21 @@
     </script>
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
+
     <header class="w-full max-w-md text-center py-6">
         <h1 class="italic-black text-2xl">Slice Dog <span class="text-orange-600">Club</span></h1>
     </header>
+
     <main id="main-ui" class="w-full max-w-md hidden">
-        <div class="bg-white rounded-[2.5rem] p-8 text-center shadow-xl mb-6">
+        <div class="bg-white rounded-[2.5rem] p-8 text-center shadow-xl mb-6 border-b-8 border-orange-500/20">
             <p id="user-greeting" class="text-[10px] font-black uppercase text-neutral-400 mb-1"></p>
             <h2 id="status-title" class="italic-black text-2xl mb-8 leading-none"></h2>
             <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-10"></div>
             <div id="action-btn-container"></div>
         </div>
+
         <div id="section-rewards" class="w-full overflow-hidden mb-8">
-            <h3 class="text-[10px] font-black uppercase text-neutral-400 mb-3 px-2">Mis Regalos</h3>
+            <h3 class="text-[10px] font-black uppercase text-neutral-400 mb-3 px-2">Mis Premios Extra</h3>
             <div id="rewards-carousel" class="flex gap-4 overflow-x-auto pb-6 px-2 snap-x scrollbar-hide"></div>
         </div>
     </main>
@@ -236,11 +251,11 @@
 
     <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
         <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-4 border-[var(--sd-mustard)] shadow-2xl">
-            <h2 class="italic-black text-2xl mb-6">Unirse al Club</h2>
+            <h2 class="italic-black text-2xl mb-6">Bienvenido</h2>
             <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-xl font-bold text-center">
             <input type="email" id="reg-email" placeholder="Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-xl font-bold text-center">
             <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-xl font-bold text-center">
-            <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black">¡Empezar!</button>
+            <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black">UNIRSE AL CLUB</button>
         </div>
     </div>
 </body>
