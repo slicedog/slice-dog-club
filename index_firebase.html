@@ -3,260 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slice Dog Club | Cliente Seguro</title>
+    <title>Slice Dog | QR DINÁMICO</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        :root { --sd-mustard: #e9a124; --sd-dark: #4a2311; --sd-bg: #f3e5d0; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); color: var(--sd-dark); margin: 0; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #4a2311; color: white; margin: 0; overflow: hidden; }
         .italic-black { font-weight: 900; font-style: italic; text-transform: uppercase; }
-        .stamp-active { background: linear-gradient(135deg, var(--sd-mustard) 0%, #d48a1a 100%); color: white; border: none; }
-        .coupon-card { min-width: 260px; background: white; border: 2px dashed var(--sd-mustard); border-radius: 1.5rem; padding: 1.5rem; position: relative; snap-align: center; }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        #reader { width: 100% !important; border: none !important; border-radius: 2rem; overflow: hidden; }
-        
-        /* BLOQUEO VISUAL DEL BOTÓN */
-        .btn-disabled { 
-            background-color: #a3a3a3 !important; 
-            opacity: 0.6 !important; 
-            cursor: not-allowed !important; 
-            pointer-events: none !important; 
-        }
+        #qrcode img { display: inline-block; border-radius: 2rem; border: 12px solid white; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
     </style>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-        // CONFIGURACIÓN DE TU FIREBASE
-        const firebaseConfig = {
-            apiKey: "AIzaSyAFwDQVPy4xRjw4rxcKcZEwNx1suV7eWW8",
-            authDomain: "slice-dog-test-firebase.firebaseapp.com",
-            projectId: "slice-dog-test-firebase",
-            storageBucket: "slice-dog-test-firebase.firebasestorage.app",
-            messagingSenderId: "1024055139023",
-            appId: "1:1024055139023:web:42985e24651b5a5f38f5ba"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        // CONFIGURACIÓN DE SEGURIDAD
-        const SECRET_SALT = "SliceDog_Super_Secret_2026"; // IGUAL QUE EN STAFF.HTML
-        const COOLDOWN_TIME = 60000; // 1 minuto de bloqueo entre sellos
-
-        let userData = JSON.parse(localStorage.getItem("sd_user_email"));
-        let html5QrCode;
-
-        // --- REGISTRO ---
-        async function registerUser() {
-            const name = document.getElementById('reg-name').value;
-            const email = document.getElementById('reg-email').value.toLowerCase().trim();
-            const wa = document.getElementById('reg-whatsapp').value;
-            if(!name || !email || !wa) return alert("Completa los datos");
-            const btn = document.getElementById('btn-register');
-            btn.disabled = true;
-            try {
-                const userRef = doc(db, "users", email);
-                const userSnap = await getDoc(userRef);
-                if (userSnap.exists()) {
-                    localStorage.setItem("sd_user_email", JSON.stringify(email));
-                    location.reload();
-                } else {
-                    const newUser = { name, email, whatsapp: wa, stamps: 1, cupon_bienvenida: "LISTO", cupon_cumple: "LISTO", lastUpdate: new Date() };
-                    await setDoc(userRef, newUser);
-                    localStorage.setItem("sd_user_email", JSON.stringify(email));
-                    location.reload();
-                }
-            } catch (e) { btn.disabled = false; }
-        }
-
-        // --- SELLADO ---
-        async function addStamp(email, currentStamps) {
-            try {
-                const userRef = doc(db, "users", email);
-                await updateDoc(userRef, { 
-                    stamps: currentStamps + 1, 
-                    lastUpdate: new Date() 
-                });
-            } catch (e) {
-                console.error("Error al guardar sello", e);
-            }
-        }
-
-        function startCooldownTimer(remainingMs) {
-            const btn = document.getElementById('btn-scan');
-            if(!btn) return;
-            btn.classList.add('btn-disabled');
-            let seconds = Math.ceil(remainingMs / 1000);
-            const interval = setInterval(() => {
-                seconds--;
-                btn.innerHTML = `<i data-lucide="clock" class="w-4"></i> ESPERA (${seconds}s)`;
-                lucide.createIcons();
-                if (seconds <= 0) {
-                    clearInterval(interval);
-                    location.reload(); 
-                }
-            }, 1000);
-        }
-
-        window.openScanner = (email, currentStamps) => {
-            const btn = document.getElementById('btn-scan');
-            if(btn.classList.contains('btn-disabled')) return;
-
-            document.getElementById('scanner-modal').classList.remove('hidden');
-            html5QrCode = new Html5Qrcode("reader");
-
-            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, 
-                async (text) => {
-                    await window.closeScanner();
-                    
-                    // BLOQUEO INSTANTÁNEO LOCAL
-                    btn.classList.add('btn-disabled');
-                    localStorage.setItem("sd_last_stamp_time", Date.now());
-
-                    // CÁLCULO DE TOKENS (TOLERANCIA DE 3 MINUTOS)
-                    const now = new Date();
-                    const prev = new Date(now.getTime() - (3 * 60 * 1000));
-
-                    const getT = (d) => {
-                        const interval = Math.floor(d.getMinutes() / 3);
-                        const s = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}-${d.getHours()}-${interval}`;
-                        return btoa(SECRET_SALT + s).substring(0, 12);
-                    };
-
-                    if (text === getT(now) || text === getT(prev)) {
-                        addStamp(email, currentStamps);
-                    } else {
-                        alert("¡QR EXPIRADO O INVÁLIDO! Por favor escanea el código actual en el mostrador.");
-                        location.reload();
-                    }
-                }
-            ).catch(e => console.error(e));
-        };
-
-        window.closeScanner = async () => {
-            if(html5QrCode) { await html5QrCode.stop(); html5QrCode = null; }
-            document.getElementById('scanner-modal').classList.add('hidden');
-        };
-
-        async function useCoupon(email, type) {
-            const pin = Math.floor(100 + Math.random() * 900);
-            if(confirm(`¿Canjear?\nPIN staff: ${pin}`)) {
-                const userRef = doc(db, "users", email);
-                const updateData = { active_pin: pin };
-                if(type === 'TABLERO') updateData.stamps = 0;
-                else updateData[type] = "USADO";
-                await updateDoc(userRef, updateData);
-            }
-        }
-
-        function renderApp(data) {
-            document.getElementById('register-modal').classList.add('hidden');
-            document.getElementById('main-ui').classList.remove('hidden');
-            document.getElementById('user-greeting').innerText = `HOLA, ${data.name} 🍕`;
-
-            const statusEl = document.getElementById('status-title');
-            const currentStamps = data.stamps || 0;
-            const btnContainer = document.getElementById('action-btn-container');
-
-            if (currentStamps >= 10 || data.active_pin) {
-                statusEl.innerText = "¡PREMIO LISTO!";
-                statusEl.classList.add("text-orange-600");
-                btnContainer.innerHTML = `
-                    <button id="btn-claim" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black flex flex-col items-center justify-center shadow-lg ${!data.active_pin ? 'animate-bounce' : ''}">
-                        <span class="text-xs font-bold mb-1">${data.active_pin ? 'PIN DE CANJE' : '¡TIENES PIZZA GRATIS!'}</span>
-                        <span class="text-2xl">${data.active_pin ? data.active_pin : 'CANJEAR AHORA'}</span>
-                    </button>`;
-                if(!data.active_pin) document.getElementById('btn-claim').onclick = () => useCoupon(data.email, 'TABLERO');
-            } else {
-                statusEl.innerText = `FALTAN ${10 - currentStamps} PARA PREMIO`;
-                btnContainer.innerHTML = `<button id="btn-scan" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg"><i data-lucide="qr-code"></i> ¡SOLICITAR SELLO!</button>`;
-                
-                const lastS = localStorage.getItem("sd_last_stamp_time");
-                if (lastS && (Date.now() - lastS < COOLDOWN_TIME)) {
-                    startCooldownTimer(COOLDOWN_TIME - (Date.now() - lastS));
-                } else {
-                    document.getElementById('btn-scan').onclick = () => openScanner(data.email, currentStamps);
-                }
-            }
-
-            // DIBUJAR SELLOS
-            const grid = document.getElementById('stamps-grid');
-            grid.innerHTML = '';
-            for(let i=0; i<10; i++) {
-                const active = i < currentStamps;
-                const slot = document.createElement('div');
-                slot.className = `aspect-square rounded-2xl flex items-center justify-center border-2 ${active ? 'stamp-active' : 'border-dashed border-neutral-300 bg-neutral-50/50'}`;
-                slot.innerHTML = active ? (i === 9 ? '<i data-lucide="gift"></i>' : '<i data-lucide="pizza"></i>') : (i === 9 ? '<i data-lucide="gift" class="text-neutral-300"></i>' : '');
-                grid.appendChild(slot);
-            }
-
-            // DIBUJAR CUPONES
-            const carousel = document.getElementById('rewards-carousel');
-            carousel.innerHTML = '';
-            const catalog = [
-                { id: 'cupon_bienvenida', title: '🎁 BIENVENIDA', gift: 'Bebida Gratis', status: data.cupon_bienvenida },
-                { id: 'cupon_cumple', title: '🎂 CUMPLE', gift: 'Rebanada Gratis', status: data.cupon_cumple }
-            ];
-            catalog.forEach(c => {
-                if(c.status === "LISTO") {
-                    const card = document.createElement('div');
-                    card.className = 'coupon-card text-center';
-                    card.innerHTML = `<p class="text-[9px] font-bold uppercase text-orange-500 mb-1">${c.title}</p><h4 class="italic-black text-lg mb-4">${c.gift}</h4><button class="w-full py-3 bg-black text-white rounded-xl text-[10px] font-black uppercase">Canjear</button>`;
-                    card.querySelector('button').onclick = () => useCoupon(data.email, c.id);
-                    carousel.appendChild(card);
-                }
-            });
-            lucide.createIcons();
-        }
-
-        window.onload = () => {
-            if(userData) onSnapshot(doc(db, "users", userData), (doc) => { if(doc.exists()) renderApp(doc.data()); });
-            else document.getElementById('register-modal').classList.remove('hidden');
-            document.getElementById('btn-register').onclick = registerUser;
-            lucide.createIcons();
-        };
-    </script>
 </head>
-<body class="min-h-screen flex flex-col items-center p-4">
+<body class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
 
-    <header class="w-full max-w-md text-center py-6">
-        <h1 class="italic-black text-2xl">Slice Dog <span class="text-orange-600">Club</span></h1>
-    </header>
-
-    <main id="main-ui" class="w-full max-w-md hidden">
-        <div class="bg-white rounded-[2.5rem] p-8 text-center shadow-xl mb-6 border-b-8 border-orange-500/20">
-            <p id="user-greeting" class="text-[10px] font-black uppercase text-neutral-400 mb-1"></p>
-            <h2 id="status-title" class="italic-black text-2xl mb-8 leading-none"></h2>
-            <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-10"></div>
-            <div id="action-btn-container"></div>
+    <div class="mb-6">
+        <div class="bg-orange-500 text-white p-4 rounded-3xl inline-block mb-4 shadow-xl animate-pulse">
+            <i data-lucide="shield-check" class="w-12 h-12"></i>
         </div>
-
-        <div id="section-rewards" class="w-full overflow-hidden mb-8">
-            <h3 class="text-[10px] font-black uppercase text-neutral-400 mb-3 px-2">Mis Premios Extra</h3>
-            <div id="rewards-carousel" class="flex gap-4 overflow-x-auto pb-6 px-2 snap-x scrollbar-hide"></div>
-        </div>
-    </main>
-
-    <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[200] flex flex-col items-center justify-center p-6 hidden">
-        <div class="w-full max-w-sm bg-white rounded-[3rem] p-4 relative">
-            <div id="reader"></div>
-            <button onclick="closeScanner()" class="mt-4 w-full py-3 text-xs font-bold uppercase text-black">Cancelar</button>
-        </div>
+        <h1 class="italic-black text-4xl mb-2">CÓDIGO <span class="text-orange-500">VIVO</span></h1>
+        <p class="text-xs tracking-[0.3em] font-bold opacity-40 uppercase">Seguridad Nivel Búnker</p>
     </div>
 
-    <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
-        <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-4 border-[var(--sd-mustard)] shadow-2xl">
-            <h2 class="italic-black text-2xl mb-6">Bienvenido</h2>
-            <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-xl font-bold text-center">
-            <input type="email" id="reg-email" placeholder="Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-xl font-bold text-center">
-            <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-xl font-bold text-center">
-            <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black">UNIRSE AL CLUB</button>
-        </div>
+    <div id="qrcode" class="bg-white p-6 rounded-[3rem] mb-8 transition-all duration-500"></div>
+
+    <div class="bg-white/10 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/20 w-full max-w-sm">
+        <p class="text-[10px] uppercase font-black opacity-50 mb-2 tracking-widest">El código expira en:</p>
+        <p id="timer-text" class="text-orange-400 font-black text-5xl italic tracking-tighter">00:00</p>
     </div>
+
+    <script>
+        // ESTA CLAVE DEBE SER SECRETA Y LA MISMA EN AMBOS ARCHIVOS
+        const SECRET_SALT = "SliceDog_Super_Secret_2026"; 
+
+        function getIntervalToken() {
+            const now = new Date();
+            const interval = Math.floor(now.getMinutes() / 3); // Bloques de 3 min
+            const timeString = `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}-${now.getHours()}-${interval}`;
+            return btoa(SECRET_SALT + timeString).substring(0, 14); 
+        }
+
+        function updateUI() {
+            const token = getIntervalToken();
+            const qrContainer = document.getElementById('qrcode');
+            
+            // Solo regenerar si el token cambió para evitar parpadeo
+            if (qrContainer.dataset.token !== token) {
+                qrContainer.dataset.token = token;
+                qrContainer.innerHTML = "";
+                const qr = qrcode(0, 'H');
+                qr.addData(token);
+                qr.make();
+                qrContainer.innerHTML = qr.createImgTag(10, 0);
+            }
+
+            // Cuenta regresiva de 3 minutos (180 segundos)
+            const now = new Date();
+            const secondsInInterval = (now.getMinutes() % 3) * 60 + now.getSeconds();
+            const remaining = 180 - secondsInInterval;
+            
+            const mins = Math.floor(remaining / 60);
+            const secs = remaining % 60;
+            document.getElementById('timer-text').innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+            
+            // Si falta poco, poner el tiempo en rojo
+            if(remaining < 20) {
+                document.getElementById('timer-text').classList.add('text-red-500');
+                document.getElementById('timer-text').classList.remove('text-orange-400');
+            } else {
+                document.getElementById('timer-text').classList.remove('text-red-500');
+                document.getElementById('timer-text').classList.add('text-orange-400');
+            }
+        }
+
+        setInterval(updateUI, 1000);
+        updateUI();
+        lucide.createIcons();
+    </script>
 </body>
 </html>
