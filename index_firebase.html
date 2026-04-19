@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slice Dog Club | v4.4 PRO</title>
+    <title>Slice Dog Club | v4.5 PRO</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -18,18 +18,32 @@
         .coupon-card { min-width: 260px; background: white; border: 2px dashed var(--sd-mustard); border-radius: 1.5rem; padding: 1.5rem; snap-align: center; }
         .locked-ui { opacity: 0.4; pointer-events: none; filter: grayscale(1); }
 
-        /* ESTILOS DEL LOADER DE PIZZA */
+        /* NUEVO LOADER DE PIZZA REAL (CSS ONLY) */
         #loader {
             position: fixed; inset: 0; background: var(--sd-bg);
             display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
             transition: opacity 0.5s ease-out;
         }
-        .pizza-loader {
-            width: 80px; height: 80px; border-radius: 50%;
-            border: 8px dashed var(--sd-mustard);
-            animation: spin 2s linear infinite;
+        .pizza-slice-css {
+            position: relative; width: 60px; height: 60px;
+            background: #f7d692; /* Queso */
+            border-radius: 50% 50% 10px 10px;
+            clip-path: polygon(50% 0%, 100% 100%, 0% 100%); /* Forma de triángulo */
+            animation: spinPizza 1.5s linear infinite;
         }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
+        /* Corteza */
+        .pizza-slice-css::before {
+            content: ''; position: absolute; top: -5px; left: 0; width: 100%; height: 10px;
+            background: #e9a124; border-radius: 5px;
+        }
+        /* Pepperonis */
+        .pizza-slice-css::after {
+            content: ''; position: absolute;
+            width: 8px; height: 8px; background: #ee4444; border-radius: 50%;
+            top: 25px; left: 26px;
+            box-shadow: 15px 15px 0 #ee4444, -10px 20px 0 #ee4444, 10px 30px 0 #ee4444;
+        }
+        @keyframes spinPizza { 100% { transform: rotate(360deg); } }
     </style>
 
     <script type="module">
@@ -55,21 +69,21 @@
         let userData = JSON.parse(localStorage.getItem("sd_user_email"));
         let html5QrCode;
 
-        // Ocultar loader
+        // Ocultar loader con efecto suave
         const hideLoader = () => {
             const l = document.getElementById('loader');
-            if(l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 500); }
+            if(l && l.style.opacity !== '0') {
+                l.style.opacity = '0';
+                setTimeout(() => l.remove(), 500);
+            }
         };
 
         async function useCoupon(email, type) {
             const userRef = doc(db, "users", email);
             const snap = await getDoc(userRef);
-            if (snap.exists() && snap.data().active_pin) {
-                alert("⚠️ YA TIENES UN CANJE ACTIVO");
-                return;
-            }
+            if (snap.exists() && snap.data().active_pin) { alert("⚠️ YA TIENES UN CANJE ACTIVO"); return; }
             const pin = Math.floor(100 + Math.random() * 900);
-            if(confirm(`¿Generar PIN de canje?`)) {
+            if(confirm(`¿Generar PIN de canje?\nTienes 5 minutos.`)) {
                 const updateData = { active_pin: pin, pin_type: type, pin_timestamp: Date.now() };
                 if(type === 'TABLERO') updateData.stamps = 0;
                 else updateData[type] = "PROCESANDO";
@@ -98,7 +112,7 @@
         };
 
         function renderApp(data) {
-            hideLoader(); // Quitamos la pizza cuando cargan los datos
+            hideLoader();
             document.getElementById('register-modal').classList.add('hidden');
             document.getElementById('main-ui').classList.remove('hidden');
             document.getElementById('user-greeting').innerText = `HOLA, ${data.name} 🍕`;
@@ -120,14 +134,14 @@
                 }
                 const restantes = Math.ceil((limite - transcurrido) / 1000);
                 statusEl.innerText = "MUESTRA EL PIN";
-                btnContainer.innerHTML = `<div class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black flex flex-col items-center justify-center animate-pulse"><span class="text-4xl tracking-[0.3em] ml-3">${data.active_pin}</span><span class="text-[10px] mt-2 opacity-80 font-bold">EXPIRA EN ${Math.floor(restantes/60)}:${(restantes%60).toString().padStart(2,'0')}</span></div>`;
+                btnContainer.innerHTML = `<div class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black flex flex-col items-center justify-center shadow-lg animate-pulse"><span class="text-4xl tracking-[0.3em] ml-3">${data.active_pin}</span><span class="text-[10px] mt-2 opacity-80 uppercase font-bold text-center px-4">EXPIRA EN ${Math.floor(restantes/60)}:${(restantes%60).toString().padStart(2,'0')}</span></div>`;
                 rewardsSection.classList.add('locked-ui');
             } else {
                 rewardsSection.classList.remove('locked-ui');
                 const currentStamps = data.stamps || 0;
                 if (currentStamps >= 10) {
                     statusEl.innerText = "¡PREMIO LISTO!";
-                    btnContainer.innerHTML = `<button id="btn-share" class="w-full py-3 mb-3 bg-white text-orange-600 border-2 border-orange-600 rounded-[1.5rem] font-black text-[10px] flex items-center justify-center gap-2 uppercase"><i data-lucide="share-2" class="w-4 h-4"></i> Presumir mi premio</button><button id="btn-claim" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black shadow-lg uppercase">Obtener PIN</button>`;
+                    btnContainer.innerHTML = `<button id="btn-share" class="w-full py-3 mb-3 bg-white text-orange-600 border-2 border-orange-600 rounded-[1.5rem] font-black text-[10px] flex items-center justify-center gap-2 uppercase"><i data-lucide="share-2" class="w-4 h-4"></i> Presumir mi premio</button><button id="btn-claim" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black shadow-lg">OBTENER PIN</button>`;
                     document.getElementById('btn-share').onclick = () => {
                          const text = `¡Ya completé mi tablero en Slice Dog Club! 🍕🔥`;
                          if (navigator.share) navigator.share({ title: 'Slice Dog Club', text: text, url: window.location.href });
@@ -194,12 +208,12 @@
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
     <div id="loader">
-        <div class="pizza-loader"></div>
-        <p class="italic-black text-xs mt-4 tracking-widest animate-pulse text-orange-600">Cocinando tu perfil...</p>
+        <div class="pizza-slice-css"></div>
+        <p class="italic-black text-[10px] mt-6 tracking-[0.2em] animate-pulse text-orange-600">Estamos cocinando tu perfil...</p>
     </div>
 
     <header class="w-full max-w-md text-center py-8">
-        <h1 class="italic-black text-2xl tracking-tighter">Slice Dog <span class="text-orange-600">Club</span> <span class="text-[8px] text-gray-400 font-bold uppercase">v4.4</span></h1>
+        <h1 class="italic-black text-2xl tracking-tighter">Slice Dog <span class="text-orange-600">Club</span> <span class="text-[8px] text-gray-400 font-bold uppercase">v4.5</span></h1>
     </header>
 
     <main id="main-ui" class="w-full max-w-md hidden">
@@ -210,7 +224,7 @@
             <div id="action-btn-container"></div>
         </div>
 
-        <div id="rewards-section" class="w-full overflow-hidden mb-8">
+        <div id="rewards-section" class="w-full overflow-hidden mb-8 transition-all">
             <h3 class="text-[10px] font-black text-neutral-400 mb-3 px-2 tracking-widest uppercase">Premios Especiales</h3>
             <div id="rewards-carousel" class="flex gap-4 overflow-x-auto pb-6 px-2 snap-x scrollbar-hide"></div>
         </div>
@@ -225,10 +239,10 @@
 
     <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
         <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-4 border-orange-400 shadow-2xl">
-            <h2 class="italic-black text-2xl mb-6 leading-none tracking-tighter">¡Únete al Club!</h2>
-            <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center">
-            <input type="email" id="reg-email" placeholder="Tu Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center">
-            <input type="tel" id="reg-whatsapp" placeholder="Tu WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center">
+            <h2 class="italic-black text-2xl mb-6 leading-none tracking-tighter">Únete al Club</h2>
+            <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none">
+            <input type="email" id="reg-email" placeholder="Tu Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none">
+            <input type="tel" id="reg-whatsapp" placeholder="Tu WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center border-none">
             <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black shadow-lg">OBTENER MI PRIMER SELLO</button>
         </div>
     </div>
