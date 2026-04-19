@@ -9,51 +9,95 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@900&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #4a2311; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #4a2311; 
+            color: white; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh; 
+            margin: 0; 
+            overflow: hidden;
+        }
         .italic-black { font-weight: 900; font-style: italic; text-transform: uppercase; }
-        #qrcode img { display: inline-block; border-radius: 2rem; border: 15px solid white; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+        #qrcode img { 
+            display: inline-block; 
+            border-radius: 2.5rem; 
+            border: 15px solid white; 
+            box-shadow: 0 25px 50px rgba(0,0,0,0.6); 
+        }
+        .status-badge {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
     </style>
 </head>
 <body class="p-6 text-center">
 
     <div class="mb-8">
-        <h1 class="italic-black text-4xl mb-2">VALIDACIÓN <span class="text-orange-500">ACTIVA</span></h1>
-        <p class="text-[10px] tracking-widest opacity-40 font-bold">ESCANEÉ PARA OBTENER SU SELLO</p>
+        <div class="bg-orange-500 text-white p-4 rounded-3xl inline-block mb-4 shadow-xl">
+            <i data-lucide="shield-check" class="w-12 h-12"></i>
+        </div>
+        <h1 class="italic-black text-4xl mb-2">QR <span class="text-orange-500">DINÁMICO</span></h1>
+        <p class="text-[10px] tracking-[0.3em] font-bold opacity-50 uppercase">Seguridad Slice Dog v3.0</p>
     </div>
 
-    <div id="qrcode" class="bg-white p-4 rounded-[3rem] mb-10 transition-opacity duration-500"></div>
+    <div id="qrcode" class="bg-white p-5 rounded-[3.5rem] mb-10 transition-all duration-500"></div>
 
-    <div class="opacity-20 flex items-center gap-2">
-        <i data-lucide="refresh-cw" class="w-3 h-3 animate-spin"></i>
-        <p class="text-[10px] font-bold uppercase tracking-tighter">Sincronizado con el servidor</p>
+    <div class="status-badge p-6 rounded-[2.5rem] w-full max-w-xs">
+        <div class="flex items-center justify-center gap-3 mb-1">
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-ping"></div>
+            <p class="text-[10px] font-black uppercase tracking-widest opacity-70">Sincronizado</p>
+        </div>
+        <p id="timer-display" class="text-orange-400 font-black text-2xl italic">--:--</p>
     </div>
 
     <script>
+        // CONFIGURACIÓN CRÍTICA: Debe ser igual en index_firebase.html
         const SECRET_SALT = "SLICE_DOG_PRO_2026"; 
-        const BLOQUE_TIEMPO_MS = 3 * 60 * 1000; // 3 Minutos en milisegundos
+        const BLOQUE_TIEMPO_MS = 3 * 60 * 1000; // 3 minutos
 
         function updateQR() {
-            const now = new Date().getTime();
-            // Esto divide el tiempo total desde 1970 en bloques exactos de 3 minutos
-            const intervalAbsoluto = Math.floor(now / BLOQUE_TIEMPO_MS);
+            const now = new Date();
+            const timeMs = now.getTime();
             
-            // Creamos un código único combinando la sal y ese bloque absoluto
-            const token = btoa(SECRET_SALT + intervalAbsoluto).substring(0, 16); // 16 caracteres para más seguridad
+            // Cálculo del bloque de tiempo absoluto (Unix)
+            const intervalAbsoluto = Math.floor(timeMs / BLOQUE_TIEMPO_MS);
+            
+            // Generación del token de 16 caracteres (Base64)
+            const token = btoa(SECRET_SALT + intervalAbsoluto).substring(0, 16);
             
             const qrContainer = document.getElementById('qrcode');
+            
+            // Solo redibujar si el token cambió para no estresar el navegador
             if (qrContainer.dataset.token !== token) {
                 qrContainer.dataset.token = token;
                 qrContainer.innerHTML = "";
+                
                 const qr = qrcode(0, 'H');
-                qr.addData(token); 
+                qr.addData(token); // Solo el código, sin URLs
                 qr.make();
                 qrContainer.innerHTML = qr.createImgTag(10, 0);
-                console.log("Nuevo Token Generado:", token);
+                
+                console.log("Token Generado:", token);
             }
+
+            // Mostrar cuenta regresiva para el siguiente cambio
+            const secondsInInterval = Math.floor((timeMs % BLOQUE_TIEMPO_MS) / 1000);
+            const remaining = 180 - secondsInInterval;
+            const mins = Math.floor(remaining / 60);
+            const secs = remaining % 60;
+            document.getElementById('timer-display').innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
         }
 
-        setInterval(updateQR, 5000); 
+        // Ejecutar inmediatamente y luego cada segundo
         updateQR();
+        setInterval(updateQR, 1000);
+        
+        // Inicializar iconos
         lucide.createIcons();
     </script>
 </body>
