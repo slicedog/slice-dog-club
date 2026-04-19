@@ -93,20 +93,29 @@
         };
 
         // --- CANJE CON AUTO-RESTAURACIÓN ---
-        async function useCoupon(email, type) {
-            const pin = Math.floor(100 + Math.random() * 900);
-            if(confirm(`¿Generar PIN de canje?\nTienes 5 minutos para que el Staff lo valide o el premio regresará a tu cuenta.`)) {
-                const userRef = doc(db, "users", email);
-                const updateData = { 
-                    active_pin: pin, 
-                    pin_type: type, 
-                    pin_timestamp: Date.now() 
-                };
-                if(type === 'TABLERO') updateData.stamps = 0;
-                else updateData[type] = "PROCESANDO"; // Estado temporal
-                await updateDoc(userRef, updateData);
-            }
-        }
+      async function useCoupon(email, type) {
+    // NUEVO: Verificamos si ya existe un PIN activo en los datos locales antes de proceder
+    // Esto evita que se generen múltiples PINs seguidos
+    const userRef = doc(db, "users", email);
+    const snap = await getDoc(userRef);
+    
+    if (snap.exists() && snap.data().active_pin) {
+        alert("⚠️ YA TIENES UN CANJE EN PROCESO\nDebes terminar el canje actual o esperar a que expire antes de solicitar otro.");
+        return;
+    }
+
+    const pin = Math.floor(100 + Math.random() * 900);
+    if(confirm(`¿Generar PIN de canje?\nTienes 5 minutos para que el Staff lo valide.`)) {
+        const updateData = { 
+            active_pin: pin, 
+            pin_type: type, 
+            pin_timestamp: Date.now() 
+        };
+        if(type === 'TABLERO') updateData.stamps = 0;
+        else updateData[type] = "PROCESANDO"; 
+        await updateDoc(userRef, updateData);
+    }
+}
 
         // --- RENDERIZADO PRINCIPAL ---
         function renderApp(data) {
@@ -171,23 +180,36 @@
             }
 
             // Cupones extra
-            const carousel = document.getElementById('rewards-carousel');
-            carousel.innerHTML = '';
-            const cupones = [
-                {id:'cupon_bienvenida', t:'🎁 BIENVENIDA', g:'Bebida'},
-                {id:'cupon_cumple', t:'🎂 CUMPLE', g:'Rebanada'}
-            ];
-            cupones.forEach(c => {
-                if(data[c.id] === "LISTO") {
-                    const card = document.createElement('div');
-                    card.className = 'coupon-card text-center';
-                    card.innerHTML = `<p class="text-[9px] font-black text-orange-500 mb-1 uppercase">${c.t}</p><h4 class="italic-black text-lg mb-4 uppercase">${c.g} GRATIS</h4><button class="w-full py-3 bg-black text-white rounded-xl text-[10px] font-black uppercase">Canjear</button>`;
-                    card.querySelector('button').onclick = () => useCoupon(data.email, c.id);
-                    carousel.appendChild(card);
-                }
-            });
-            lucide.createIcons();
+            // ... dentro de renderApp(data) ...
+const carousel = document.getElementById('rewards-carousel');
+carousel.innerHTML = '';
+
+const cupones = [
+    {id:'cupon_bienvenida', t:'🎁 BIENVENIDA', g:'Bebida'},
+    {id:'cupon_cumple', t:'🎂 CUMPLE', g:'Rebanada'}
+];
+
+cupones.forEach(c => {
+    if(data[c.id] === "LISTO") {
+        const card = document.createElement('div');
+        card.className = 'coupon-card text-center';
+        
+        // CAMBIO: Si hay un active_pin, desactivamos el botón visualmente
+        const isBusy = data.active_pin ? 'opacity-20 pointer-events-none' : '';
+        
+        card.innerHTML = `
+            <p class="text-[9px] font-black text-orange-500 mb-1 uppercase">${c.t}</p>
+            <h4 class="italic-black text-lg mb-4 uppercase">${c.g} GRATIS</h4>
+            <button class="w-full py-3 bg-black text-white rounded-xl text-[10px] font-black uppercase ${isBusy}">
+                ${data.active_pin ? 'Bloqueado' : 'Canjear'}
+            </button>`;
+        
+        if(!data.active_pin) {
+            card.querySelector('button').onclick = () => useCoupon(data.email, c.id);
         }
+        carousel.appendChild(card);
+    }
+});
 
         function startCooldownTimer(remainingMs) {
             const btn = document.getElementById('btn-scan');
