@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slice Dog Club | v4.0</title>
+    <title>Slice Dog Club | v4.1 PRO</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -36,11 +36,12 @@
 
         const SECRET_SALT = "SD2026"; 
         const BLOQUE_TIEMPO_MS = 180000; 
-        const COOLDOWN_TIME = 600000;
+        const COOLDOWN_TIME = 60000; // 1 minuto de bloqueo tras sellar
 
         let userData = JSON.parse(localStorage.getItem("sd_user_email"));
         let html5QrCode;
 
+        // --- REGISTRO ---
         async function registerUser() {
             const name = document.getElementById('reg-name').value;
             const email = document.getElementById('reg-email').value.toLowerCase().trim();
@@ -60,36 +61,27 @@
             } catch (e) { alert("Error al registrar"); }
         }
 
+        // --- ESCÁNER ---
         window.openScanner = (email, currentStamps) => {
             const btn = document.getElementById('btn-scan');
             if(btn.classList.contains('btn-disabled')) return;
-
             document.getElementById('scanner-modal').classList.remove('hidden');
             html5QrCode = new Html5Qrcode("reader");
-
             html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, 
                 async (text) => {
                     await window.closeScanner();
-                    btn.classList.add('btn-disabled');
-
                     const scannedText = text.trim();
                     const now = Date.now();
-                    const bloqueActual = Math.floor(now / BLOQUE_TIEMPO_MS);
-                    const bloqueAnterior = bloqueActual - 1;
+                    const b1 = Math.floor(now / BLOQUE_TIEMPO_MS);
+                    const b2 = b1 - 1;
+                    const t1 = btoa(b1 + "_" + SECRET_SALT);
+                    const t2 = btoa(b2 + "_" + SECRET_SALT);
 
-                    // Generamos los 2 posibles tokens válidos en este momento
-                    const t1 = btoa(bloqueActual + "_" + SECRET_SALT);
-                    const t2 = btoa(bloqueAnterior + "_" + SECRET_SALT);
-
-                    // COMPARACIÓN LÓGICA
                     if (scannedText === t1 || scannedText === t2) {
                         localStorage.setItem("sd_last_stamp_time", Date.now());
-                        const userRef = doc(db, "users", email);
-                        await updateDoc(userRef, { stamps: currentStamps + 1, lastUpdate: new Date() });
+                        await updateDoc(doc(db, "users", email), { stamps: currentStamps + 1, lastUpdate: new Date() });
                     } else {
-                        // Mensaje de depuración para que entiendas por qué falló
-                        alert("❌ CÓDIGO INVÁLIDO O EXPIRADO\n\nEste código fue generado fuera de la ventana de 6 minutos permitida.");
-                        btn.classList.remove('btn-disabled'); 
+                        alert("❌ QR EXPIRADO\nEscanea el código actualizado en la pantalla.");
                     }
                 }
             ).catch(e => console.error(e));
@@ -100,43 +92,96 @@
             document.getElementById('scanner-modal').classList.add('hidden');
         };
 
+        // --- CANJE CON AUTO-RESTAURACIÓN ---
+        async function useCoupon(email, type) {
+            const pin = Math.floor(100 + Math.random() * 900);
+            if(confirm(`¿Generar PIN de canje?\nTienes 5 minutos para que el Staff lo valide o el premio regresará a tu cuenta.`)) {
+                const userRef = doc(db, "users", email);
+                const updateData = { 
+                    active_pin: pin, 
+                    pin_type: type, 
+                    pin_timestamp: Date.now() 
+                };
+                if(type === 'TABLERO') updateData.stamps = 0;
+                else updateData[type] = "PROCESANDO"; // Estado temporal
+                await updateDoc(userRef, updateData);
+            }
+        }
+
+        // --- RENDERIZADO PRINCIPAL ---
         function renderApp(data) {
             document.getElementById('register-modal').classList.add('hidden');
             document.getElementById('main-ui').classList.remove('hidden');
             document.getElementById('user-greeting').innerText = `HOLA, ${data.name} 🍕`;
-            const currentStamps = data.stamps || 0;
+            
             const statusEl = document.getElementById('status-title');
             const btnContainer = document.getElementById('action-btn-container');
 
-            if (currentStamps >= 10 || data.active_pin) {
-                statusEl.innerText = "¡PREMIO LISTO!";
-                btnContainer.innerHTML = `<button id="btn-claim" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black flex flex-col items-center justify-center shadow-lg"><span class="text-xs font-bold mb-1">${data.active_pin ? 'PIN DE CANJE' : 'OBTENER PREMIO'}</span><span class="text-2xl">${data.active_pin ? data.active_pin : 'OBTENER PIN'}</span></button>`;
-                if(!data.active_pin) document.getElementById('btn-claim').onclick = () => useCoupon(data.email, 'TABLERO');
+            // LÓGICA DE PIN ACTIVO / EXPIRACIÓN
+            if (data.active_pin) {
+                const ahora = Date.now();
+                const transcurrido = ahora - (data.pin_timestamp || 0);
+                const limite = 5 * 60 * 1000; // 5 minutos
+
+                if (transcurrido > limite) {
+                    // AUTO-RESTAURAR: El tiempo pasó
+                    const userRef = doc(db, "users", data.email);
+                    const reset = { active_pin: null, pin_timestamp: null, pin_type: null };
+                    if(data.pin_type === 'TABLERO') reset.stamps = 10;
+                    else reset[data.pin_type] = "LISTO";
+                    updateDoc(userRef, reset);
+                    return;
+                }
+
+                const restantes = Math.ceil((limite - transcurrido) / 1000);
+                const m = Math.floor(restantes / 60);
+                const s = restantes % 60;
+
+                statusEl.innerText = "MUESTRA EL PIN";
+                btnContainer.innerHTML = `
+                    <div class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black flex flex-col items-center justify-center shadow-lg animate-pulse">
+                        <span class="text-4xl tracking-[0.3em] ml-3">${data.active_pin}</span>
+                        <span class="text-[10px] mt-2 opacity-80 uppercase font-bold">Expira en ${m}:${s < 10 ? '0' : ''}${s}</span>
+                    </div>`;
             } else {
-                statusEl.innerText = `FALTAN ${10 - currentStamps} PARA PREMIO`;
-                btnContainer.innerHTML = `<button id="btn-scan" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg"><i data-lucide="qr-code"></i> SOLICITAR SELLO</button>`;
-                const lastS = localStorage.getItem("sd_last_stamp_time");
-                if (lastS && (Date.now() - lastS < COOLDOWN_TIME)) startCooldownTimer(COOLDOWN_TIME - (Date.now() - lastS));
-                else document.getElementById('btn-scan').onclick = () => openScanner(data.email, currentStamps);
+                // FLUJO NORMAL (SIN PIN)
+                const currentStamps = data.stamps || 0;
+                if (currentStamps >= 10) {
+                    statusEl.innerText = "¡PREMIO LISTO!";
+                    btnContainer.innerHTML = `<button id="btn-claim" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black shadow-lg uppercase">Obtener PIN de Canje</button>`;
+                    document.getElementById('btn-claim').onclick = () => useCoupon(data.email, 'TABLERO');
+                } else {
+                    statusEl.innerText = `FALTAN ${10 - currentStamps} PARA PREMIO`;
+                    btnContainer.innerHTML = `<button id="btn-scan" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg uppercase"><i data-lucide="qr-code"></i> Solicitar Sello</button>`;
+                    const lastS = localStorage.getItem("sd_last_stamp_time");
+                    if (lastS && (Date.now() - lastS < COOLDOWN_TIME)) startCooldownTimer(COOLDOWN_TIME - (Date.now() - lastS));
+                    else document.getElementById('btn-scan').onclick = () => openScanner(data.email, currentStamps);
+                }
+
+                // Grid de sellos
+                const grid = document.getElementById('stamps-grid');
+                grid.innerHTML = '';
+                for(let i=0; i<10; i++) {
+                    const active = i < currentStamps;
+                    const slot = document.createElement('div');
+                    slot.className = `aspect-square rounded-2xl flex items-center justify-center border-2 ${active ? 'stamp-active' : 'border-dashed border-neutral-300 bg-neutral-50/50'}`;
+                    slot.innerHTML = active ? (i === 9 ? '<i data-lucide="gift"></i>' : '<i data-lucide="pizza"></i>') : (i === 9 ? '<i data-lucide="gift" class="text-neutral-300"></i>' : '');
+                    grid.appendChild(slot);
+                }
             }
 
-            const grid = document.getElementById('stamps-grid');
-            grid.innerHTML = '';
-            for(let i=0; i<10; i++) {
-                const active = i < currentStamps;
-                const slot = document.createElement('div');
-                slot.className = `aspect-square rounded-2xl flex items-center justify-center border-2 ${active ? 'stamp-active' : 'border-dashed border-neutral-300 bg-neutral-50/50'}`;
-                slot.innerHTML = active ? (i === 9 ? '<i data-lucide="gift"></i>' : '<i data-lucide="pizza"></i>') : (i === 9 ? '<i data-lucide="gift" class="text-neutral-300"></i>' : '');
-                grid.appendChild(slot);
-            }
-
+            // Cupones extra
             const carousel = document.getElementById('rewards-carousel');
             carousel.innerHTML = '';
-            [{id:'cupon_bienvenida', t:'🎁 BIENVENIDA', g:'Bebida'}, {id:'cupon_cumple', t:'🎂 CUMPLE', g:'Rebanada'}].forEach(c => {
+            const cupones = [
+                {id:'cupon_bienvenida', t:'🎁 BIENVENIDA', g:'Bebida'},
+                {id:'cupon_cumple', t:'🎂 CUMPLE', g:'Rebanada'}
+            ];
+            cupones.forEach(c => {
                 if(data[c.id] === "LISTO") {
                     const card = document.createElement('div');
                     card.className = 'coupon-card text-center';
-                    card.innerHTML = `<p class="text-[9px] font-black text-orange-500 mb-1">${c.t}</p><h4 class="italic-black text-lg mb-4">${c.g}</h4><button class="w-full py-3 bg-black text-white rounded-xl text-[10px] font-black uppercase">Canjear</button>`;
+                    card.innerHTML = `<p class="text-[9px] font-black text-orange-500 mb-1 uppercase">${c.t}</p><h4 class="italic-black text-lg mb-4 uppercase">${c.g} GRATIS</h4><button class="w-full py-3 bg-black text-white rounded-xl text-[10px] font-black uppercase">Canjear</button>`;
                     card.querySelector('button').onclick = () => useCoupon(data.email, c.id);
                     carousel.appendChild(card);
                 }
@@ -156,20 +201,19 @@
             }, 1000);
         }
 
-        async function useCoupon(email, type) {
-            const pin = Math.floor(100 + Math.random() * 900);
-            if(confirm(`¿Canjear?\nPresenta el PIN al Staff: ${pin}`)) {
-                const userRef = doc(db, "users", email);
-                const updateData = { active_pin: pin };
-                if(type === 'TABLERO') updateData.stamps = 0;
-                else updateData[type] = "USADO";
-                await updateDoc(userRef, updateData);
-            }
-        }
-
         window.onload = () => {
-            if(userData) onSnapshot(doc(db, "users", userData), (doc) => { if(doc.exists()) renderApp(doc.data()); });
-            else document.getElementById('register-modal').classList.remove('hidden');
+            if(userData) {
+                onSnapshot(doc(db, "users", userData), (doc) => { if(doc.exists()) renderApp(doc.data()); });
+                // Refresco visual cada segundo para el contador del PIN
+                setInterval(() => {
+                    const email = JSON.parse(localStorage.getItem("sd_user_email"));
+                    if(email) {
+                        getDoc(doc(db, "users", email)).then(s => { if(s.exists() && s.data().active_pin) renderApp(s.data()); });
+                    }
+                }, 1000);
+            } else {
+                document.getElementById('register-modal').classList.remove('hidden');
+            }
             document.getElementById('btn-register').onclick = registerUser;
             lucide.createIcons();
         };
@@ -177,33 +221,37 @@
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
     <header class="w-full max-w-md text-center py-8">
-        <h1 class="italic-black text-2xl tracking-tighter">Slice Dog <span class="text-orange-600">Club</span> <span class="text-[8px] text-gray-400">v4.0</span></h1>
+        <h1 class="italic-black text-2xl tracking-tighter">Slice Dog <span class="text-orange-600">Club</span> <span class="text-[8px] text-gray-400">v4.1</span></h1>
     </header>
+
     <main id="main-ui" class="w-full max-w-md hidden">
         <div class="bg-white rounded-[2.5rem] p-8 text-center shadow-xl mb-6 border-b-8 border-orange-500/10">
-            <p id="user-greeting" class="text-[10px] font-black text-neutral-400 mb-2 tracking-widest"></p>
+            <p id="user-greeting" class="text-[10px] font-black text-neutral-400 mb-2 tracking-widest uppercase"></p>
             <h2 id="status-title" class="italic-black text-3xl mb-8 leading-none"></h2>
             <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-10"></div>
             <div id="action-btn-container"></div>
         </div>
+
         <div class="w-full overflow-hidden mb-8">
-            <h3 class="text-[10px] font-black text-neutral-400 mb-3 px-2 tracking-widest uppercase">Premios</h3>
+            <h3 class="text-[10px] font-black text-neutral-400 mb-3 px-2 tracking-widest uppercase">Premios Especiales</h3>
             <div id="rewards-carousel" class="flex gap-4 overflow-x-auto pb-6 px-2 snap-x scrollbar-hide"></div>
         </div>
     </main>
+
     <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[200] flex flex-col items-center justify-center p-6 hidden">
         <div class="w-full max-w-sm bg-white rounded-[3rem] p-4 text-center">
             <div id="reader"></div>
-            <button onclick="closeScanner()" class="mt-4 py-4 text-xs font-black text-neutral-400 uppercase">Cancelar</button>
+            <button onclick="closeScanner()" class="mt-4 py-4 text-xs font-black text-neutral-400 uppercase tracking-widest">Cancelar Escaneo</button>
         </div>
     </div>
+
     <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
-        <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-4 border-orange-400">
-            <h2 class="italic-black text-2xl mb-6 leading-none">Unirse al Club</h2>
+        <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-4 border-orange-400 shadow-2xl">
+            <h2 class="italic-black text-2xl mb-6 leading-none">Bienvenido al<br>Club</h2>
             <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none">
-            <input type="email" id="reg-email" placeholder="Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none">
-            <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center border-none">
-            <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black">OBTENER MI PRIMER SELLO</button>
+            <input type="email" id="reg-email" placeholder="Tu Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none">
+            <input type="tel" id="reg-whatsapp" placeholder="Tu WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center border-none">
+            <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black shadow-lg">OBTENER MI PRIMER SELLO</button>
         </div>
     </div>
 </body>
