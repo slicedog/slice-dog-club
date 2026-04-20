@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slice Dog Club | v6.2 Master</title>
+    <title>Slice Dog Club | v6.3 Final</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -13,15 +13,17 @@
         body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); color: var(--sd-dark); margin: 0; overflow: hidden; }
         .italic-black { font-weight: 900; font-style: italic; text-transform: uppercase; }
         
+        /* FIX LOGO: Centrado absoluto */
         #loader { position: fixed; inset: 0; background: var(--sd-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; transition: opacity 0.8s; }
-        .logo-glow-container { width: 180px; height: 180px; background: radial-gradient(circle, rgba(235,154,31,0.45) 0%, rgba(243,229,208,0) 75%); display: flex; align-items: center; justify-content: center; border-radius: 50%; animation: pulseGolden 2.2s infinite; }
-        .custom-logo-svg { width: 115px; height: 115px; fill: var(--sd-mustard); }
-        @keyframes pulseGolden { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); filter: drop-shadow(0 0 20px var(--sd-mustard)); } }
+        .logo-glow-container { width: 140px; height: 140px; background: radial-gradient(circle, rgba(235,154,31,0.3) 0%, rgba(243,229,208,0) 70%); display: flex; align-items: center; justify-content: center; animation: pulseGolden 2s infinite; }
+        .custom-logo-svg { width: 100px; height: 100px; fill: var(--sd-mustard); display: block; }
+        
+        @keyframes pulseGolden { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 1; } }
         
         .stamp-active { background: linear-gradient(135deg, var(--sd-mustard) 0%, #c97e10 100%); color: white; border: none; }
         .coupon-card { min-width: 260px; background: white; border: 2px dashed var(--sd-mustard); border-radius: 1.5rem; padding: 1.5rem; snap-align: center; }
         .locked-ui { opacity: 0.4; pointer-events: none; filter: grayscale(1); }
-        #main-ui { overflow-y: auto; height: 100vh; padding-bottom: 60px; }
+        #main-ui { overflow-y: auto; height: 100vh; padding-bottom: 80px; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
     </style>
 
@@ -54,21 +56,21 @@
             if(l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 800); }
         };
 
-        // ESCUCHAR CONFIGURACIÓN GLOBAL (INTERRUPTORES)
-        onSnapshot(doc(db, "config", "promos"), (doc) => {
-            if(doc.exists()) {
-                globalConfig = doc.data();
-                // Si ya estamos logueados, refrescar la vista para aplicar cambios de interruptores
+        // ESCUCHA REAL DEL CONFIG
+        onSnapshot(doc(db, "config", "promos"), (snapshot) => {
+            if(snapshot.exists()) {
+                globalConfig = snapshot.data();
                 if(userStoredEmail) {
                     getDoc(doc(db, "users", userStoredEmail)).then(u => { if(u.exists()) renderApp(u.data()); });
                 }
             }
+        }, (error) => {
+            console.error("Error leyendo config:", error);
         });
 
         async function useCoupon(email, type, name) {
             const userRef = doc(db, "users", email);
             const pin = Math.floor(100 + Math.random() * 900);
-            
             const updateData = { active_pin: pin, pin_type: type, pin_timestamp: Date.now() };
             if(type === 'TABLERO') updateData.stamps = 0;
             else updateData[type] = "PROCESANDO";
@@ -114,30 +116,21 @@
                 const updateTimer = () => {
                     const transcurrido = Date.now() - (data.pin_timestamp || 0);
                     const restantes = Math.ceil((limite - transcurrido) / 1000);
-
                     if (restantes <= 0) {
                         clearInterval(activeTimerInterval);
-                        const userRef = doc(db, "users", data.email);
-                        const reset = { active_pin: null, pin_timestamp: null, pin_type: null };
-                        if(data.pin_type === 'TABLERO') reset.stamps = 10;
-                        else reset[data.pin_type] = "LISTO";
-                        updateDoc(userRef, reset);
+                        updateDoc(doc(db, "users", data.email), { active_pin: null, pin_timestamp: null, pin_type: null });
                         return;
                     }
-
-                    const m = Math.floor(restantes / 60);
-                    const s = (restantes % 60).toString().padStart(2, '0');
-                    const timerText = document.getElementById('countdown-text');
-                    if(timerText) timerText.innerText = `Expira en ${m}:${s}`;
+                    const m = Math.floor(restantes / 60), s = (restantes % 60).toString().padStart(2, '0');
+                    const t = document.getElementById('countdown-text');
+                    if(t) t.innerText = `Expira en ${m}:${s}`;
                 };
-
                 statusEl.innerText = "MUESTRA EL PIN";
                 btnContainer.innerHTML = `
                     <div class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black flex flex-col items-center justify-center shadow-lg animate-pulse">
                         <span class="text-4xl tracking-[0.3em] ml-3">${data.active_pin}</span>
-                        <span id="countdown-text" class="text-[10px] mt-2 opacity-80 font-bold uppercase">Calculando...</span>
+                        <span id="countdown-text" class="text-[10px] mt-2 opacity-80 font-bold">Calculando...</span>
                     </div>`;
-                
                 rewardsSection.classList.add('locked-ui');
                 activeTimerInterval = setInterval(updateTimer, 1000);
                 updateTimer();
@@ -155,7 +148,6 @@
                     if (lastS && (Date.now() - lastS < COOLDOWN_TIME)) startCooldownTimer(COOLDOWN_TIME - (Date.now() - lastS));
                     else document.getElementById('btn-scan').onclick = () => openScanner(data.email, currentStamps);
                 }
-                
                 const grid = document.getElementById('stamps-grid'); grid.innerHTML = '';
                 for(let i=0; i<10; i++) {
                     const active = i < currentStamps;
@@ -166,26 +158,23 @@
                 }
             }
 
-            // RENDER CUPONES CON INTERRUPTOR MAESTRO
             const carousel = document.getElementById('rewards-carousel'); carousel.innerHTML = '';
             const cupones = [
                 {id:'cupon_bienvenida', t:'🎁 BIENVENIDA', g:'Bebida', active: globalConfig.bienvenida_activa}, 
                 {id:'cupon_cumple', t:'🎂 CUMPLE', g:'Rebanada', active: globalConfig.cumple_activa}
             ];
-
-            let cuponesVisibles = 0;
+            let visibles = 0;
             cupones.forEach(c => {
                 if(data[c.id] === "LISTO" && c.active) {
-                    cuponesVisibles++;
+                    visibles++;
                     const card = document.createElement('div');
                     card.className = 'coupon-card text-center';
                     card.innerHTML = `<p class="text-[9px] font-black text-orange-500 mb-1 uppercase">${c.t}</p><h4 class="italic-black text-lg mb-4 uppercase">${c.g} GRATIS</h4><button class="w-full py-3 bg-black text-white rounded-xl text-[10px] font-black uppercase">Canjear</button>`;
-                    card.querySelector('button').onclick = () => { if(confirm('¿Generar PIN ahora?')) useCoupon(data.email, c.id, data.name); };
+                    card.querySelector('button').onclick = () => { if(confirm('¿Generar PIN?')) useCoupon(data.email, c.id, data.name); };
                     carousel.appendChild(card);
                 }
             });
-
-            rewardsSection.style.display = cuponesVisibles > 0 ? 'block' : 'none';
+            rewardsSection.style.display = visibles > 0 ? 'block' : 'none';
             lucide.createIcons();
         }
 
@@ -206,7 +195,6 @@
                 setTimeout(hideLoader, 2500); 
                 document.getElementById('register-modal').classList.remove('hidden'); 
             }
-            
             document.getElementById('btn-register').onclick = () => {
                 const n = document.getElementById('reg-name').value, e = document.getElementById('reg-email').value.toLowerCase().trim(), w = document.getElementById('reg-whatsapp').value;
                 if(n && e && w) {
@@ -218,15 +206,17 @@
         };
     </script>
 </head>
-<body class="min-h-screen flex flex-col items-center">
+<body>
     <div id="loader">
         <div class="logo-glow-container">
-            <svg class="custom-logo-svg" viewBox="0 0 128 128"><path d="M47.87,60.71c-9.85-9.55,3.49-25.11,14.53-16.74,12.29,9.31-3.43,27.51-14.53,16.74ZM48.68,46.12c-10.17,10.69,9.16,23.63,15.43,11.21,5.11-10.11-7.98-19.04-15.43-11.21Z"/><path d="M100.59,8.2c-3.2-2.53-7.31-2.84-11.26-3.22-18.61-1.8-41.4,1.28-57.8,10.53-5.35,3.01-15.55,9.39-16.32,15.84-1.11,9.32,7.16,17.31,16.44,15.03,8.74-10.86,28.56-14.65,41.8-15.29,6.1-.29,16.97,1.47,22.02-.89,10.4,1.77,13.94,14.04,5.46,19.81Z"/></svg>
+            <svg class="custom-logo-svg" viewBox="0 0 100 100">
+                <path d="M35,45c-8,8,3,20,12,13c10-7-3-22-12-13Z M36,33c-8,8,7,18,12,9c4-8-6-15-12-9Z M75,5c-2-2-6-2-9-2c-15-1-33,1-46,8c-4,2-12,7-13,12c-1,7,6,14,13,12c7-9,23-12,33-12c5,0,14,1,18-1c8,1,11,11,4,16Z"/>
+            </svg>
         </div>
-        <h2 class="italic-black text-3xl mt-6 tracking-tighter">SLICE DOG</h2>
+        <h2 class="italic-black text-2xl mt-4 tracking-tighter">SLICE DOG</h2>
     </div>
 
-    <header class="w-full max-w-md text-center py-10">
+    <header class="w-full max-w-md text-center py-8">
         <h1 class="italic-black text-2xl tracking-tighter">Slice Dog <span class="text-orange-600">Club</span></h1>
     </header>
 
@@ -247,13 +237,12 @@
     <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
         <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-4 border-orange-400">
             <h2 class="italic-black text-2xl mb-6">Únete al Club</h2>
-            <input type="text" id="reg-name" placeholder="Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none outline-none">
-            <input type="email" id="reg-email" placeholder="Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none outline-none">
-            <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center border-none outline-none">
+            <input type="text" id="reg-name" placeholder="Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none outline-none text-sm">
+            <input type="email" id="reg-email" placeholder="Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none outline-none text-sm">
+            <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center border-none outline-none text-sm">
             <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black">EMPEZAR AHORA</button>
         </div>
     </div>
-
     <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[200] flex flex-col items-center justify-center p-6 hidden">
         <div class="w-full max-w-sm bg-white rounded-[3rem] p-4 text-center">
             <div id="reader"></div>
