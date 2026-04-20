@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slice Dog Club | v5.1 COMPLETE</title>
+    <title>Slice Dog Club | v6.0 Nexus</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -49,7 +49,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        // Añadimos collection y addDoc para el historial
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAFwDQVPy4xRjw4rxcKcZEwNx1suV7eWW8",
@@ -66,7 +67,7 @@
         const BLOQUE_TIEMPO_MS = 180000; 
         const COOLDOWN_TIME = 600000; 
 
-        let userData = JSON.parse(localStorage.getItem("sd_user_email"));
+        let userStoredEmail = JSON.parse(localStorage.getItem("sd_user_email"));
         let html5QrCode;
 
         const hideLoader = () => {
@@ -74,16 +75,28 @@
             if(l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 800); }
         };
 
-        async function useCoupon(email, type) {
+        async function useCoupon(email, type, name) {
             const userRef = doc(db, "users", email);
             const snap = await getDoc(userRef);
             if (snap.exists() && snap.data().active_pin) { alert("⚠️ YA TIENES UN CANJE ACTIVO"); return; }
+            
             const pin = Math.floor(100 + Math.random() * 900);
             if(confirm(`¿Generar PIN de canje?`)) {
                 const updateData = { active_pin: pin, pin_type: type, pin_timestamp: Date.now() };
                 if(type === 'TABLERO') updateData.stamps = 0;
                 else updateData[type] = "PROCESANDO";
+                
                 await updateDoc(userRef, updateData);
+
+                // REGISTRO EN HISTORIAL (Punto de Agenda)
+                await addDoc(collection(db, "historial"), {
+                    email: email,
+                    nombre: name || "S/D",
+                    tipo: type,
+                    pin: pin,
+                    fecha: new Date(),
+                    estado: "GENERADO"
+                });
             }
         }
 
@@ -138,7 +151,7 @@
                 if (currentStamps >= 10) {
                     statusEl.innerText = "¡PREMIO LISTO!";
                     btnContainer.innerHTML = `<button id="btn-claim" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black shadow-lg">OBTENER PIN</button>`;
-                    document.getElementById('btn-claim').onclick = () => useCoupon(data.email, 'TABLERO');
+                    document.getElementById('btn-claim').onclick = () => useCoupon(data.email, 'TABLERO', data.name);
                 } else {
                     statusEl.innerText = `FALTAN ${10 - currentStamps} PARA PREMIO`;
                     btnContainer.innerHTML = `<button id="btn-scan" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg uppercase"><i data-lucide="qr-code"></i> Solicitar Sello</button>`;
@@ -163,7 +176,7 @@
                     const card = document.createElement('div');
                     card.className = 'coupon-card text-center';
                     card.innerHTML = `<p class="text-[9px] font-black text-orange-500 mb-1 uppercase">${c.t}</p><h4 class="italic-black text-lg mb-4 uppercase">${c.g} GRATIS</h4><button class="w-full py-3 bg-black text-white rounded-xl text-[10px] font-black uppercase">Canjear</button>`;
-                    card.querySelector('button').onclick = () => useCoupon(data.email, c.id);
+                    card.querySelector('button').onclick = () => useCoupon(data.email, c.id, data.name);
                     carousel.appendChild(card);
                 }
             });
@@ -181,13 +194,26 @@
         }
 
         window.onload = () => {
-            if(userData) { onSnapshot(doc(db, "users", userData), (doc) => { if(doc.exists()) renderApp(doc.data()); }); }
+            if(userStoredEmail) { onSnapshot(doc(db, "users", userStoredEmail), (doc) => { if(doc.exists()) renderApp(doc.data()); }); }
             else { setTimeout(hideLoader, 2500); document.getElementById('register-modal').classList.remove('hidden'); }
+            
             document.getElementById('btn-register').onclick = () => {
-                const n = document.getElementById('reg-name').value, e = document.getElementById('reg-email').value.toLowerCase().trim(), w = document.getElementById('reg-whatsapp').value;
+                const n = document.getElementById('reg-name').value, 
+                      e = document.getElementById('reg-email').value.toLowerCase().trim(), 
+                      w = document.getElementById('reg-whatsapp').value;
                 if(n && e && w) {
-                    setDoc(doc(db, "users", e), { name: n, email: e, whatsapp: w, stamps: 1, cupon_bienvenida: "LISTO", cupon_cumple: "LISTO", lastUpdate: new Date() })
-                    .then(() => { localStorage.setItem("sd_user_email", JSON.stringify(e)); location.reload(); });
+                    setDoc(doc(db, "users", e), { 
+                        name: n, 
+                        email: e, 
+                        whatsapp: w, 
+                        stamps: 1, 
+                        cupon_bienvenida: "LISTO", 
+                        cupon_cumple: "LISTO", 
+                        lastUpdate: new Date() 
+                    }).then(() => { 
+                        localStorage.setItem("sd_user_email", JSON.stringify(e)); 
+                        location.reload(); 
+                    });
                 }
             };
             lucide.createIcons();
@@ -229,9 +255,9 @@
     <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
         <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-4 border-orange-400 shadow-2xl">
             <h2 class="italic-black text-2xl mb-6 leading-none">Únete al Club</h2>
-            <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none">
-            <input type="email" id="reg-email" placeholder="Tu Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none">
-            <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center border-none">
+            <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none outline-none">
+            <input type="email" id="reg-email" placeholder="Tu Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none outline-none">
+            <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center border-none outline-none">
             <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black shadow-lg">EMPEZAR AHORA</button>
         </div>
     </div>
