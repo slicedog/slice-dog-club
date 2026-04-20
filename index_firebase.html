@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slice Dog Club | v4.9 LOGO OFICIAL</title>
+    <title>Slice Dog Club | v5.0 PREMIUM</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -13,55 +13,53 @@
         body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); color: var(--sd-dark); margin: 0; overflow: hidden; }
         .italic-black { font-weight: 900; font-style: italic; text-transform: uppercase; }
         
-        /* --- SPLASH SCREEN CON TU LOGO OFICIAL --- */
+        /* --- SPLASH SCREEN: LOGO CON GROSOR EXTRA Y GLOW --- */
         #loader {
             position: fixed; inset: 0; background: var(--sd-bg);
             display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
             transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
-        /* Contenedor del Resplandor Intensificado */
         .logo-glow-container {
             width: 180px; height: 180px;
-            background: radial-gradient(circle, rgba(235,154,31,0.4) 0%, rgba(235,154,31,0.1) 45%, rgba(243,229,208,0) 75%);
+            background: radial-gradient(circle, rgba(235,154,31,0.45) 0%, rgba(235,154,31,0.1) 50%, rgba(243,229,208,0) 75%);
             display: flex; align-items: center; justify-content: center;
             border-radius: 50%;
-            animation: pulseGolden 2.5s ease-in-out infinite;
+            animation: pulseGolden 2.2s ease-in-out infinite;
         }
 
-        /* Estilización de tu SVG */
         .custom-logo-svg {
-            width: 110px; height: 110px;
-            filter: drop-shadow(0 4px 10px rgba(0,0,0,0.1));
+            width: 115px; height: 115px;
+            filter: drop-shadow(0 6px 12px rgba(0,0,0,0.15));
         }
         
-        /* Forzamos que tu logo use los bordes redondeados y el color de marca */
+        /* Aumento de grosor y suavizado de líneas del logo */
         .custom-logo-svg path, .custom-logo-svg polygon {
             fill: var(--sd-mustard);
             stroke: var(--sd-mustard);
-            stroke-width: 0.8; /* Un toque de grosor extra para que resalte */
+            stroke-width: 1.8; /* GROSOR INCREMENTADO PARA MÁS PRESENCIA */
             stroke-linecap: round;
             stroke-linejoin: round;
         }
 
         @keyframes pulseGolden { 
-            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(235,154,31,0.2)); } 
-            50% { transform: scale(1.1); filter: drop-shadow(0 0 30px rgba(235,154,31,0.5)); } 
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 15px rgba(235,154,31,0.2)); } 
+            50% { transform: scale(1.08); filter: drop-shadow(0 0 35px rgba(235,154,31,0.6)); } 
         }
 
-        /* Puntitos de carga */
-        .dot-flashing { display: inline-flex; gap: 6px; margin-top: 20px; }
-        .dot { width: 8px; height: 8px; background: #d1c1aa; border-radius: 50%; animation: dotAnim 1.4s infinite; }
+        .dot-flashing { display: inline-flex; gap: 6px; margin-top: 25px; }
+        .dot { width: 9px; height: 9px; background: #d1c1aa; border-radius: 50%; animation: dotAnim 1.4s infinite; }
         .dot:nth-child(2) { animation-delay: 0.2s; }
         .dot:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes dotAnim { 0%, 100% { opacity: 0.3; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
+        @keyframes dotAnim { 0%, 100% { opacity: 0.3; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-4px); } }
 
         /* Estilos de la App */
         .stamp-active { background: linear-gradient(135deg, var(--sd-mustard) 0%, #c97e10 100%); color: white; border: none; }
-        #main-ui { overflow-y: auto; height: 100vh; padding-bottom: 40px; }
+        #main-ui { overflow-y: auto; height: 100vh; padding-bottom: 50px; }
     </style>
 
     <script type="module">
+        // --- CONFIGURACIÓN Y LÓGICA DE FIREBASE ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -79,7 +77,7 @@
 
         const SECRET_SALT = "SD2026"; 
         const BLOQUE_TIEMPO_MS = 180000; 
-        const COOLDOWN_TIME = 600000; 
+        const COOLDOWN_TIME = 60000; 
 
         let userData = JSON.parse(localStorage.getItem("sd_user_email"));
         let html5QrCode;
@@ -183,7 +181,7 @@
             document.getElementById('btn-register').onclick = () => {
                 const n = document.getElementById('reg-name').value, e = document.getElementById('reg-email').value.toLowerCase().trim(), w = document.getElementById('reg-whatsapp').value;
                 if(n && e && w) {
-                    setDoc(doc(db, "users", e), { name: n, email: e, whatsapp: w, stamps: 1, cupon_bienvenida: "LISTO", cupon_cumple: "LISTO", lastUpdate: new Date() })
+                    setDoc(doc(db, "users", e), { name: n, email: e, whatsapp: w, stamps: 1, cupon_bienvenida: "LISTO", lastUpdate: new Date() })
                     .then(() => { localStorage.setItem("sd_user_email", JSON.stringify(e)); location.reload(); });
                 }
             };
@@ -212,7 +210,6 @@
         <div class="dot-flashing">
             <div class="dot"></div><div class="dot"></div><div class="dot"></div>
         </div>
-        <p class="text-[10px] font-black text-orange-600 mt-10 tracking-[0.3em] uppercase opacity-60">Cocinando tu perfil</p>
     </div>
 
     <header class="w-full max-w-md text-center py-10">
@@ -230,11 +227,11 @@
 
     <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
         <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-4 border-orange-400 shadow-2xl">
-            <h2 class="italic-black text-2xl mb-6">Únete al Club</h2>
-            <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none focus:ring-2 ring-orange-400">
-            <input type="email" id="reg-email" placeholder="Tu Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none focus:ring-2 ring-orange-400">
-            <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center border-none focus:ring-2 ring-orange-400">
-            <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black uppercase">Empezar Ahora</button>
+            <h2 class="italic-black text-2xl mb-6 leading-none">Únete al Club</h2>
+            <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none">
+            <input type="email" id="reg-email" placeholder="Tu Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center border-none">
+            <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center border-none">
+            <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black shadow-lg">EMPEZAR AHORA</button>
         </div>
     </div>
 
