@@ -64,7 +64,7 @@
         const db = getFirestore(app);
         const SECRET_SALT = "SD2026"; 
         const BLOQUE_TIEMPO_MS = 180000; 
-        const COOLDOWN_TIME = 60000; 
+        const COOLDOWN_TIME = 600000; 
 
         let userData = JSON.parse(localStorage.getItem("sd_user_email"));
         let html5QrCode;
