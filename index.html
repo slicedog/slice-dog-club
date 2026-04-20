@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slice Dog Club | v6.3 Final</title>
+    <title>Slice Dog Club | v6.4 Diseño Corregido</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -13,12 +13,13 @@
         body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); color: var(--sd-dark); margin: 0; overflow: hidden; }
         .italic-black { font-weight: 900; font-style: italic; text-transform: uppercase; }
         
-        /* FIX LOGO: Centrado absoluto */
         #loader { position: fixed; inset: 0; background: var(--sd-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; transition: opacity 0.8s; }
-        .logo-glow-container { width: 140px; height: 140px; background: radial-gradient(circle, rgba(235,154,31,0.3) 0%, rgba(243,229,208,0) 70%); display: flex; align-items: center; justify-content: center; animation: pulseGolden 2s infinite; }
-        .custom-logo-svg { width: 100px; height: 100px; fill: var(--sd-mustard); display: block; }
+        .logo-glow-container { width: 140px; height: 140px; background: radial-gradient(circle, rgba(235,154,31,0.4) 0%, rgba(243,229,208,0) 70%); display: flex; align-items: center; justify-content: center; animation: pulseGolden 2s infinite; border-radius: 50%; }
         
-        @keyframes pulseGolden { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 1; } }
+        /* Logo restaurado y centrado con transform en lugar de cortar el SVG */
+        .custom-logo-svg { width: 115px; height: 115px; fill: var(--sd-mustard); display: block; transform: translate(-2px, -6px); }
+        
+        @keyframes pulseGolden { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 1; filter: drop-shadow(0 0 15px var(--sd-mustard)); } }
         
         .stamp-active { background: linear-gradient(135deg, var(--sd-mustard) 0%, #c97e10 100%); color: white; border: none; }
         .coupon-card { min-width: 260px; background: white; border: 2px dashed var(--sd-mustard); border-radius: 1.5rem; padding: 1.5rem; snap-align: center; }
@@ -56,7 +57,6 @@
             if(l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 800); }
         };
 
-        // ESCUCHA REAL DEL CONFIG
         onSnapshot(doc(db, "config", "promos"), (snapshot) => {
             if(snapshot.exists()) {
                 globalConfig = snapshot.data();
@@ -206,11 +206,12 @@
         };
     </script>
 </head>
-<body>
+<body class="min-h-screen flex flex-col items-center">
     <div id="loader">
         <div class="logo-glow-container">
-            <svg class="custom-logo-svg" viewBox="0 0 100 100">
-                <path d="M35,45c-8,8,3,20,12,13c10-7-3-22-12-13Z M36,33c-8,8,7,18,12,9c4-8-6-15-12-9Z M75,5c-2-2-6-2-9-2c-15-1-33,1-46,8c-4,2-12,7-13,12c-1,7,6,14,13,12c7-9,23-12,33-12c5,0,14,1,18-1c8,1,11,11,4,16Z"/>
+            <svg class="custom-logo-svg" viewBox="0 0 128 128">
+                <path d="M47.87,60.71c-9.85-9.55,3.49-25.11,14.53-16.74,12.29,9.31-3.43,27.51-14.53,16.74ZM48.68,46.12c-10.17,10.69,9.16,23.63,15.43,11.21,5.11-10.11-7.98-19.04-15.43-11.21Z"/>
+                <path d="M100.59,8.2c-3.2-2.53-7.31-2.84-11.26-3.22-18.61-1.8-41.4,1.28-57.8,10.53-5.35,3.01-15.55,9.39-16.32,15.84-1.11,9.32,7.16,17.31,16.44,15.03,8.74-10.86,28.56-14.65,41.8-15.29,6.1-.29,16.97,1.47,22.02-.89,10.4,1.77,13.94,14.04,5.46,19.81Z"/>
             </svg>
         </div>
         <h2 class="italic-black text-2xl mt-4 tracking-tighter">SLICE DOG</h2>
