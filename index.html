@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slice Dog Club | v6.1 Chronos</title>
+    <title>Slice Dog Club | v6.2 Master</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -46,27 +46,35 @@
 
         let userStoredEmail = JSON.parse(localStorage.getItem("sd_user_email"));
         let html5QrCode;
-        let activeTimerInterval; // Para el contador del PIN
+        let activeTimerInterval;
+        let globalConfig = { bienvenida_activa: true, cumple_activa: true };
 
         const hideLoader = () => {
             const l = document.getElementById('loader');
             if(l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 800); }
         };
 
+        // ESCUCHAR CONFIGURACIÓN GLOBAL (INTERRUPTORES)
+        onSnapshot(doc(db, "config", "promos"), (doc) => {
+            if(doc.exists()) {
+                globalConfig = doc.data();
+                // Si ya estamos logueados, refrescar la vista para aplicar cambios de interruptores
+                if(userStoredEmail) {
+                    getDoc(doc(db, "users", userStoredEmail)).then(u => { if(u.exists()) renderApp(u.data()); });
+                }
+            }
+        });
+
         async function useCoupon(email, type, name) {
             const userRef = doc(db, "users", email);
-            const snap = await getDoc(userRef);
-            if (snap.exists() && snap.data().active_pin) { alert("⚠️ YA TIENES UN CANJE ACTIVO"); return; }
-            
             const pin = Math.floor(100 + Math.random() * 900);
-            if(confirm(`¿Generar PIN de canje?`)) {
-                const updateData = { active_pin: pin, pin_type: type, pin_timestamp: Date.now() };
-                if(type === 'TABLERO') updateData.stamps = 0;
-                else updateData[type] = "PROCESANDO";
-                
-                await updateDoc(userRef, updateData);
-                await addDoc(collection(db, "historial"), { email, nombre: name || "S/D", tipo: type, pin, fecha: new Date(), estado: "GENERADO" });
-            }
+            
+            const updateData = { active_pin: pin, pin_type: type, pin_timestamp: Date.now() };
+            if(type === 'TABLERO') updateData.stamps = 0;
+            else updateData[type] = "PROCESANDO";
+            
+            await updateDoc(userRef, updateData);
+            await addDoc(collection(db, "historial"), { email, nombre: name || "S/D", tipo: type, pin, fecha: new Date(), estado: "GENERADO" });
         }
 
         window.openScanner = (email, currentStamps) => {
@@ -99,13 +107,10 @@
             const btnContainer = document.getElementById('action-btn-container');
             const rewardsSection = document.getElementById('rewards-section');
 
-            // LIMPIAR INTERVALO PREVIO SI EXISTE
             if(activeTimerInterval) clearInterval(activeTimerInterval);
 
             if (data.active_pin) {
                 const limite = 5 * 60 * 1000;
-                
-                // Función de motor de tiempo
                 const updateTimer = () => {
                     const transcurrido = Date.now() - (data.pin_timestamp || 0);
                     const restantes = Math.ceil((limite - transcurrido) / 1000);
@@ -161,18 +166,26 @@
                 }
             }
 
-            // RENDER CUPONES
+            // RENDER CUPONES CON INTERRUPTOR MAESTRO
             const carousel = document.getElementById('rewards-carousel'); carousel.innerHTML = '';
-            const cupones = [{id:'cupon_bienvenida', t:'🎁 BIENVENIDA', g:'Bebida'}, {id:'cupon_cumple', t:'🎂 CUMPLE', g:'Rebanada'}];
+            const cupones = [
+                {id:'cupon_bienvenida', t:'🎁 BIENVENIDA', g:'Bebida', active: globalConfig.bienvenida_activa}, 
+                {id:'cupon_cumple', t:'🎂 CUMPLE', g:'Rebanada', active: globalConfig.cumple_activa}
+            ];
+
+            let cuponesVisibles = 0;
             cupones.forEach(c => {
-                if(data[c.id] === "LISTO") {
+                if(data[c.id] === "LISTO" && c.active) {
+                    cuponesVisibles++;
                     const card = document.createElement('div');
                     card.className = 'coupon-card text-center';
                     card.innerHTML = `<p class="text-[9px] font-black text-orange-500 mb-1 uppercase">${c.t}</p><h4 class="italic-black text-lg mb-4 uppercase">${c.g} GRATIS</h4><button class="w-full py-3 bg-black text-white rounded-xl text-[10px] font-black uppercase">Canjear</button>`;
-                    card.querySelector('button').onclick = () => useCoupon(data.email, c.id, data.name);
+                    card.querySelector('button').onclick = () => { if(confirm('¿Generar PIN ahora?')) useCoupon(data.email, c.id, data.name); };
                     carousel.appendChild(card);
                 }
             });
+
+            rewardsSection.style.display = cuponesVisibles > 0 ? 'block' : 'none';
             lucide.createIcons();
         }
 
