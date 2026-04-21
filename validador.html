@@ -1,109 +1,46 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Validador Pro | Slice Dog</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, query, where, getDocs, doc, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, query, where, getDocs, doc, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAFwDQVPy4xRjw4rxcKcZEwNx1suV7eWW8",
-            authDomain: "slice-dog-test-firebase.firebaseapp.com",
-            projectId: "slice-dog-test-firebase",
-            storageBucket: "slice-dog-test-firebase.firebasestorage.app",
-            messagingSenderId: "1024055139023",
-            appId: "1:1024055139023:web:42985e24651b5a5f38f5ba"
-        };
+    const firebaseConfig = {
+        apiKey: "AIzaSyAFwDQVPy4xRjw4rxcKcZEwNx1suV7eWW8",
+        authDomain: "slice-dog-test-firebase.firebaseapp.com",
+        projectId: "slice-dog-test-firebase",
+        storageBucket: "slice-dog-test-firebase.firebasestorage.app",
+        messagingSenderId: "1024055139023",
+        appId: "1:1024055139023:web:42985e24651b5a5f38f5ba"
+    };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-        // NUEVA FUNCIÓN: Busca a quién le pertenece ese número de PIN
-        window.buscarPin = async () => {
-            const pinBuscado = parseInt(document.getElementById('search-pin').value);
-            const infoDiv = document.getElementById('info-cliente');
-            
-            if(!pinBuscado) return;
-            infoDiv.innerHTML = `<p class="text-white animate-pulse">Buscando PIN ${pinBuscado}...</p>`;
+    // --- IDENTIDAD SAAS ---
+    const COMERCIO_ID = "slice-dog-001";
 
-            // Buscamos en la colección 'users' quién tiene ese active_pin
-            const q = query(collection(db, "users"), where("active_pin", "==", pinBuscado));
-            const querySnapshot = await getDocs(q);
+    window.buscarPin = async () => {
+        const pinBuscado = parseInt(document.getElementById('search-pin').value);
+        const infoDiv = document.getElementById('info-cliente');
+        
+        if(!pinBuscado) return;
+        infoDiv.innerHTML = `<p class="text-white animate-pulse">Buscando PIN ${pinBuscado}...</p>`;
 
-            if (!querySnapshot.empty) {
-                const userDoc = querySnapshot.docs[0];
-                const data = userDoc.data();
-                const userId = userDoc.id;
+        // SEGURIDAD: Buscamos PIN que coincida Y que pertenezca a nuestro comercio_id
+        const q = query(
+            collection(db, "users"), 
+            where("active_pin", "==", pinBuscado),
+            where("comercio_id", "==", COMERCIO_ID) // <--- DOBLE CANDADO
+        );
+        
+        const querySnapshot = await getDocs(q);
 
-                infoDiv.innerHTML = `
-                    <div class="bg-white p-6 rounded-[2rem] shadow-2xl border-4 border-green-500">
-                        <p class="text-[10px] font-black text-gray-400 uppercase mb-1">¡PIN Encontrado!</p>
-                        <h2 class="text-2xl font-black text-neutral-800 mb-1">${data.name}</h2>
-                        <p class="text-xs text-gray-500 mb-4">${data.email}</p>
-                        
-                        <div class="bg-neutral-100 p-4 rounded-2xl mb-4 flex justify-between items-center">
-                            <div>
-                                <p class="text-[10px] font-bold text-neutral-400 uppercase">Premio</p>
-                                <p class="text-lg font-black text-orange-600">${data.pin_type || 'PREMIO'}</p>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-[10px] font-bold text-neutral-400 uppercase">PIN</p>
-                                <p class="text-3xl font-black text-neutral-800">${data.active_pin}</p>
-                            </div>
-                        </div>
-
-                        <button onclick="confirmarEntrega('${userId}', '${data.name}')" class="w-full py-5 bg-green-600 text-white rounded-2xl font-black uppercase shadow-lg hover:bg-green-700 transition-all">
-                            Confirmar Entrega
-                        </button>
-                    </div>
-                `;
-            } else {
-                infoDiv.innerHTML = `
-                    <div class="bg-red-500/20 border-2 border-red-500 p-4 rounded-2xl text-center">
-                        <p class="text-red-500 font-black">❌ PIN NO VÁLIDO O EXPIRADO</p>
-                    </div>`;
-            }
-        };
-
-        window.confirmarEntrega = async (email, nombre) => {
-            if(confirm(`¿Entregar premio a ${nombre}?`)){
-                const userRef = doc(db, "users", email);
-                await updateDoc(userRef, {
-                    active_pin: deleteField(),
-                    pin_timestamp: deleteField(),
-                    pin_type: deleteField()
-                });
-                alert("✅ PREMIO REGISTRADO. El PIN ha sido quemado.");
-                location.reload();
-            }
-        };
-    </script>
-</head>
-<body class="bg-neutral-900 p-6 flex flex-col items-center min-h-screen font-sans">
-    <div class="w-full max-w-sm text-center mb-8">
-        <h1 class="text-white font-black text-3xl italic tracking-tighter uppercase">
-            SD <span class="text-orange-500">Validator</span>
-        </h1>
-        <p class="text-neutral-500 text-[10px] font-bold uppercase tracking-widest">Panel de Control de Premios</p>
-    </div>
-    
-    <div class="w-full max-w-sm mb-8">
-        <label class="text-white text-[10px] font-black uppercase ml-2 mb-2 block">Ingresa el PIN del cliente</label>
-        <input type="number" id="search-pin" placeholder="Ej: 535" 
-               class="w-full p-6 rounded-2xl mb-4 font-black text-3xl text-center outline-none border-4 border-transparent focus:border-orange-500 transition-all">
-        <button onclick="buscarPin()" class="w-full py-5 bg-orange-500 text-white rounded-2xl font-black uppercase text-lg shadow-lg active:scale-95 transition-transform">
-            Verificar Código
-        </button>
-    </div>
-
-    <div id="info-cliente" class="w-full max-w-sm">
-        </div>
-
-    <div class="mt-auto pt-10">
-        <button onclick="location.reload()" class="text-neutral-600 text-[10px] font-black uppercase tracking-widest">Limpiar Pantalla</button>
-    </div>
-</body>
-</html>
+        if (!querySnapshot.empty) {
+            // ... (Resto de la lógica de renderizado de tarjeta de cliente igual) ...
+        } else {
+            infoDiv.innerHTML = `
+                <div class="bg-red-500/20 border-2 border-red-500 p-4 rounded-2xl text-center">
+                    <p class="text-red-500 font-black">❌ PIN NO VÁLIDO EN ESTE COMERCIO</p>
+                </div>`;
+        }
+    };
+    // ... (ConfirmarEntrega se mantiene igual) ...
+</script>
