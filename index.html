@@ -9,7 +9,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap');
         :root { --sd-orange: #ff5c00; --sd-bg: #fffbf5; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); color: #1a1a1a; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); color: #1a1a1a; margin: 0; }
         .loader-screen { position: fixed; inset: 0; background: white; z-index: 9999; display: flex; align-items: center; justify-content: center; transition: opacity 0.8s; }
     </style>
 </head>
@@ -25,14 +25,14 @@
     <div id="app-root"></div>
 
     <div id="register-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 hidden">
-        <div class="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl">
+        <div class="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl text-center">
             <h2 class="text-2xl font-black text-slate-800 mb-2 italic">¡ÚNETE AL CLUB! 🍕</h2>
-            <p class="text-slate-500 mb-6 font-medium">Registra tus datos para guardar tus sellos.</p>
+            <p class="text-slate-500 mb-6 font-medium text-sm">Registra tus datos para guardar tus sellos.</p>
             <div class="space-y-4">
-                <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-semibold focus:ring-2 focus:ring-orange-500">
-                <input type="email" id="reg-email" placeholder="Tu Correo" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-semibold focus:ring-2 focus:ring-orange-500">
-                <input type="tel" id="reg-whatsapp" placeholder="Tu WhatsApp" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-semibold focus:ring-2 focus:ring-orange-500">
-                <button id="btn-register" class="w-full bg-orange-500 text-white font-black py-4 rounded-2xl hover:bg-orange-600 transition-all">EMPEZAR AHORA</button>
+                <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-semibold focus:ring-2 focus:ring-orange-500 border-none">
+                <input type="email" id="reg-email" placeholder="Tu Correo" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-semibold focus:ring-2 focus:ring-orange-500 border-none">
+                <input type="tel" id="reg-whatsapp" placeholder="Tu WhatsApp" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-semibold focus:ring-2 focus:ring-orange-500 border-none">
+                <button id="btn-register" class="w-full bg-orange-500 text-white font-black py-4 rounded-2xl hover:bg-orange-600 transition-all active:scale-95">EMPEZAR AHORA</button>
             </div>
         </div>
     </div>
@@ -61,18 +61,31 @@
             if(l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 800); }
         };
 
-        // --- Lógica de Registro ---
         window.onload = () => {
+            // SEGURIDAD: Intentar siempre ocultar el loader pase lo que pase tras 5 seg
+            setTimeout(hideLoader, 5000);
+
             if(userStoredEmail) {
                 onSnapshot(doc(db, "users", userStoredEmail), (snapshot) => {
-                    if(snapshot.exists()) renderApp(snapshot.data());
+                    if(snapshot.exists()) {
+                        renderApp(snapshot.data());
+                        hideLoader();
+                    } else {
+                        // Si el usuario guardado no existe en DB, pedir registro
+                        localStorage.removeItem("sd_user_email");
+                        document.getElementById('register-modal').classList.remove('hidden');
+                        hideLoader();
+                    }
+                }, (error) => {
+                    console.error("Error de Firebase:", error);
                     hideLoader();
                 });
             } else {
-                hideLoader();
                 document.getElementById('register-modal').classList.remove('hidden');
+                hideLoader();
             }
 
+            // BOTÓN DE REGISTRO CON PROTECCIÓN 'NULL'
             const regBtn = document.getElementById('btn-register');
             if(regBtn) {
                 regBtn.onclick = async () => {
@@ -83,34 +96,40 @@
                     if(!e) { alert("Ingresa un correo"); return; }
 
                     const userRef = doc(db, "users", e);
-                    const userSnap = await getDoc(userRef);
-
-                    if(userSnap.exists()){
-                        localStorage.setItem("sd_user_email", JSON.stringify(e));
-                        location.reload();
-                    } else if(n && w) {
-                        await setDoc(userRef, {
-                            name: n, email: e, whatsapp: w, stamps: 1, 
-                            comercio_id: COMERCIO_ID, cupon_bienvenida: "LISTO", cupon_cumple: "LISTO"
-                        });
-                        localStorage.setItem("sd_user_email", JSON.stringify(e));
-                        location.reload();
-                    } else {
-                        alert("Completa todos los campos");
+                    try {
+                        const userSnap = await getDoc(userRef);
+                        if(userSnap.exists()){
+                            localStorage.setItem("sd_user_email", JSON.stringify(e));
+                            location.reload();
+                        } else if(n && w) {
+                            await setDoc(userRef, {
+                                name: n, email: e, whatsapp: w, stamps: 1, 
+                                comercio_id: COMERCIO_ID, cupon_bienvenida: "LISTO", cupon_cumple: "LISTO"
+                            });
+                            localStorage.setItem("sd_user_email", JSON.stringify(e));
+                            location.reload();
+                        } else {
+                            alert("Por favor completa Nombre y WhatsApp");
+                        }
+                    } catch (err) {
+                        alert("Error al conectar con la base de datos.");
+                        console.error(err);
                     }
                 };
             }
-            lucide.createIcons();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         };
 
         function renderApp(data) {
             const root = document.getElementById('app-root');
+            if(!root) return;
+            
             root.innerHTML = `
-                <div class="p-6 max-w-md mx-auto">
+                <div class="p-6 max-w-md mx-auto min-h-screen pb-24">
                     <header class="flex justify-between items-center mb-8">
                         <div>
-                            <h1 class="font-black text-2xl tracking-tighter">HOLA, <span class="text-orange-500">${data.name.toUpperCase()}</span>!</h1>
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Slice Dog Club Member</p>
+                            <h1 class="font-black text-2xl tracking-tighter italic">HOLA, <span class="text-orange-500">${(data.name || 'CLIENTE').toUpperCase()}</span>!</h1>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Slice Dog Club Member</p>
                         </div>
                         <div class="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center border border-slate-100">
                             <i data-lucide="pizza" class="text-orange-500"></i>
@@ -118,26 +137,28 @@
                     </header>
 
                     <div class="bg-white rounded-[2.5rem] p-8 shadow-xl shadow-orange-100/50 border border-orange-50 mb-6 text-center">
-                        <div class="text-6xl mb-2">🍕</div>
-                        <h2 class="text-5xl font-black text-slate-800 mb-2">${data.stamps || 0}</h2>
-                        <p class="text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em]">Sellos Acumulados</p>
+                        <div class="text-6xl mb-4">🍕</div>
+                        <h2 class="text-6xl font-black text-slate-800 mb-1">${data.stamps || 0}</h2>
+                        <p class="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em]">Sellos Acumulados</p>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-blue-500 p-6 rounded-[2rem] text-white">
-                            <i data-lucide="gift" class="mb-2"></i>
-                            <p class="text-[10px] font-bold opacity-80 uppercase">Bienvenida</p>
-                            <p class="font-black">${data.cupon_bienvenida || 'OK'}</p>
+                        <div class="bg-slate-900 p-6 rounded-[2rem] text-white">
+                            <i data-lucide="award" class="mb-2 text-orange-400"></i>
+                            <p class="text-[9px] font-bold opacity-60 uppercase tracking-wider">Status</p>
+                            <p class="font-black text-sm uppercase">Fiel Dog</p>
                         </div>
-                        <div class="bg-slate-800 p-6 rounded-[2rem] text-white text-center" onclick="location.reload()">
-                            <i data-lucide="refresh-cw" class="mx-auto mb-2 w-4 h-4"></i>
-                            <p class="text-[10px] font-bold opacity-80 uppercase text-center">Actualizar</p>
+                        <div class="bg-white border border-slate-100 p-6 rounded-[2rem] text-center" onclick="location.reload()">
+                            <i data-lucide="refresh-cw" class="mx-auto mb-2 w-5 h-5 text-slate-400"></i>
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Actualizar</p>
                         </div>
                     </div>
                 </div>
             `;
-            lucide.createIcons();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
     </script>
+</body>
+</html>
 </body>
 </html>
