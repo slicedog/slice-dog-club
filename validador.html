@@ -21,6 +21,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // NUEVA FUNCIÓN: Busca a quién le pertenece ese número de PIN
         window.buscarPin = async () => {
             const pinBuscado = parseInt(document.getElementById('search-pin').value);
             const infoDiv = document.getElementById('info-cliente');
@@ -28,6 +29,7 @@
             if(!pinBuscado) return;
             infoDiv.innerHTML = `<p class="text-white animate-pulse">Buscando PIN ${pinBuscado}...</p>`;
 
+            // Buscamos en la colección 'users' quién tiene ese active_pin
             const q = query(collection(db, "users"), where("active_pin", "==", pinBuscado));
             const querySnapshot = await getDocs(q);
 
@@ -90,13 +92,15 @@
     
     <div class="w-full max-w-sm mb-8">
         <label class="text-white text-[10px] font-black uppercase ml-2 mb-2 block">Ingresa el PIN del cliente</label>
-        <input type="number" id="search-pin" placeholder="Ej: 535" class="w-full p-6 rounded-2xl mb-4 font-black text-3xl text-center outline-none border-4 border-transparent focus:border-orange-500 transition-all">
+        <input type="number" id="search-pin" placeholder="Ej: 535" 
+               class="w-full p-6 rounded-2xl mb-4 font-black text-3xl text-center outline-none border-4 border-transparent focus:border-orange-500 transition-all">
         <button onclick="buscarPin()" class="w-full py-5 bg-orange-500 text-white rounded-2xl font-black uppercase text-lg shadow-lg active:scale-95 transition-transform">
             Verificar Código
         </button>
     </div>
 
-    <div id="info-cliente" class="w-full max-w-sm"></div>
+    <div id="info-cliente" class="w-full max-w-sm">
+        </div>
 
     <div class="mt-auto pt-10">
         <button onclick="location.reload()" class="text-neutral-600 text-[10px] font-black uppercase tracking-widest">Limpiar Pantalla</button>
