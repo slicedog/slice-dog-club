@@ -1,116 +1,143 @@
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slice Dog Club | Fidelidad</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap');
+        :root { --sd-orange: #ff5c00; --sd-bg: #fffbf5; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); color: #1a1a1a; }
+        .loader-screen { position: fixed; inset: 0; background: white; z-index: 9999; display: flex; align-items: center; justify-content: center; transition: opacity 0.8s; }
+    </style>
+</head>
+<body>
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyAFwDQVPy4xRjw4rxcKcZEwNx1suV7eWW8",
-        authDomain: "slice-dog-test-firebase.firebaseapp.com",
-        projectId: "slice-dog-test-firebase",
-        storageBucket: "slice-dog-test-firebase.firebasestorage.app",
-        messagingSenderId: "1024055139023",
-        appId: "1:1024055139023:web:42985e24651b5a5f38f5ba"
-    };
+    <div id="loader" class="loader-screen">
+        <div class="flex flex-col items-center">
+            <div class="w-16 h-16 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin"></div>
+            <p class="mt-4 font-black text-slate-400 animate-pulse uppercase tracking-widest text-xs">Cargando Slice Dog...</p>
+        </div>
+    </div>
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    
-    // --- IDENTIDAD SAAS ---
-    const COMERCIO_ID = "slice-dog-001"; 
-    
-    const SECRET_SALT = "SD2026"; 
-    const BLOQUE_TIEMPO_MS = 180000; 
-    const COOLDOWN_TIME = 600000; 
+    <div id="app-root"></div>
 
-    let userStoredEmail = JSON.parse(localStorage.getItem("sd_user_email"));
-    let html5QrCode;
-    let activeTimerInterval;
-    let globalConfig = { bienvenida_activa: true, cumple_activa: true };
+    <div id="register-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 hidden">
+        <div class="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl">
+            <h2 class="text-2xl font-black text-slate-800 mb-2 italic">¡ÚNETE AL CLUB! 🍕</h2>
+            <p class="text-slate-500 mb-6 font-medium">Registra tus datos para guardar tus sellos.</p>
+            <div class="space-y-4">
+                <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-semibold focus:ring-2 focus:ring-orange-500">
+                <input type="email" id="reg-email" placeholder="Tu Correo" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-semibold focus:ring-2 focus:ring-orange-500">
+                <input type="tel" id="reg-whatsapp" placeholder="Tu WhatsApp" class="w-full p-4 bg-slate-50 rounded-2xl outline-none font-semibold focus:ring-2 focus:ring-orange-500">
+                <button id="btn-register" class="w-full bg-orange-500 text-white font-black py-4 rounded-2xl hover:bg-orange-600 transition-all">EMPEZAR AHORA</button>
+            </div>
+        </div>
+    </div>
 
-    const hideLoader = () => {
-        const l = document.getElementById('loader');
-        if(l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 800); }
-    };
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // Escuchar promos (También filtradas por comercio en el futuro si quieres)
-    onSnapshot(doc(db, "config", "promos"), (snapshot) => {
-        if(snapshot.exists()) {
-            globalConfig = snapshot.data();
+        const firebaseConfig = {
+            apiKey: "AIzaSyAFwDQVPy4xRjw4rxcKcZEwNx1suV7eWW8",
+            authDomain: "slice-dog-test-firebase.firebaseapp.com",
+            projectId: "slice-dog-test-firebase",
+            storageBucket: "slice-dog-test-firebase.firebasestorage.app",
+            messagingSenderId: "1024055139023",
+            appId: "1:1024055139023:web:42985e24651b5a5f38f5ba"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const COMERCIO_ID = "slice-dog-001"; 
+
+        let userStoredEmail = JSON.parse(localStorage.getItem("sd_user_email"));
+
+        const hideLoader = () => {
+            const l = document.getElementById('loader');
+            if(l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 800); }
+        };
+
+        // --- Lógica de Registro ---
+        window.onload = () => {
             if(userStoredEmail) {
-                getDoc(doc(db, "users", userStoredEmail)).then(u => { if(u.exists()) renderApp(u.data()); });
-            }
-        }
-    });
-
-    async function useCoupon(email, type, name) {
-        const userRef = doc(db, "users", email);
-        const pin = Math.floor(100 + Math.random() * 900);
-        const updateData = { 
-            active_pin: pin, 
-            pin_type: type, 
-            pin_timestamp: Date.now(),
-            comercio_id: COMERCIO_ID // Aseguramos que el movimiento es de este comercio
-        };
-        if(type === 'TABLERO') updateData.stamps = 0;
-        else updateData[type] = "PROCESANDO";
-        
-        await updateDoc(userRef, updateData);
-        // Historial con ID de comercio para métricas en Admin
-        await addDoc(collection(db, "historial"), { 
-            email, 
-            nombre: name || "S/D", 
-            tipo: type, 
-            pin, 
-            fecha: new Date(), 
-            estado: "GENERADO",
-            comercio_id: COMERCIO_ID 
-        });
-    }
-
-    // ... (Funciones de Scanner se mantienen igual) ...
-
-    window.onload = () => {
-        if(userStoredEmail) { 
-            onSnapshot(doc(db, "users", userStoredEmail), (doc) => { 
-                if(doc.exists()) renderApp(doc.data()); 
-            }); 
-        } else { 
-            setTimeout(hideLoader, 2500); 
-            document.getElementById('register-modal').classList.remove('hidden'); 
-        }
-
-        document.getElementById('btn-register').onclick = async () => {
-            const n = document.getElementById('reg-name').value;
-            const e = document.getElementById('reg-email').value.toLowerCase().trim();
-            const w = document.getElementById('reg-whatsapp').value;
-
-            if(!e) { alert("Por favor ingresa tu correo"); return; }
-
-            const userRef = doc(db, "users", e);
-            const userSnap = await getDoc(userRef);
-
-            if (userSnap.exists()) {
-                localStorage.setItem("sd_user_email", JSON.stringify(e));
-                location.reload();
+                onSnapshot(doc(db, "users", userStoredEmail), (snapshot) => {
+                    if(snapshot.exists()) renderApp(snapshot.data());
+                    hideLoader();
+                });
             } else {
-                if(n && w) {
-                    await setDoc(userRef, { 
-                        name: n, 
-                        email: e, 
-                        whatsapp: w, 
-                        stamps: 1, 
-                        comercio_id: COMERCIO_ID, // <--- MARCA DE AGUA AL REGISTRAR
-                        cupon_bienvenida: "LISTO", 
-                        cupon_cumple: "LISTO", 
-                        lastUpdate: new Date() 
-                    });
-                    localStorage.setItem("sd_user_email", JSON.stringify(e));
-                    location.reload();
-                } else {
-                    alert("Para clientes nuevos, necesitamos nombre y WhatsApp.");
-                }
+                hideLoader();
+                document.getElementById('register-modal').classList.remove('hidden');
             }
+
+            const regBtn = document.getElementById('btn-register');
+            if(regBtn) {
+                regBtn.onclick = async () => {
+                    const n = document.getElementById('reg-name').value;
+                    const e = document.getElementById('reg-email').value.toLowerCase().trim();
+                    const w = document.getElementById('reg-whatsapp').value;
+
+                    if(!e) { alert("Ingresa un correo"); return; }
+
+                    const userRef = doc(db, "users", e);
+                    const userSnap = await getDoc(userRef);
+
+                    if(userSnap.exists()){
+                        localStorage.setItem("sd_user_email", JSON.stringify(e));
+                        location.reload();
+                    } else if(n && w) {
+                        await setDoc(userRef, {
+                            name: n, email: e, whatsapp: w, stamps: 1, 
+                            comercio_id: COMERCIO_ID, cupon_bienvenida: "LISTO", cupon_cumple: "LISTO"
+                        });
+                        localStorage.setItem("sd_user_email", JSON.stringify(e));
+                        location.reload();
+                    } else {
+                        alert("Completa todos los campos");
+                    }
+                };
+            }
+            lucide.createIcons();
         };
-        lucide.createIcons();
-    };
-    // ... (RenderApp se mantiene igual, ya lee del documento 'data' de Firebase) ...
-</script>
+
+        function renderApp(data) {
+            const root = document.getElementById('app-root');
+            root.innerHTML = `
+                <div class="p-6 max-w-md mx-auto">
+                    <header class="flex justify-between items-center mb-8">
+                        <div>
+                            <h1 class="font-black text-2xl tracking-tighter">HOLA, <span class="text-orange-500">${data.name.toUpperCase()}</span>!</h1>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Slice Dog Club Member</p>
+                        </div>
+                        <div class="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center border border-slate-100">
+                            <i data-lucide="pizza" class="text-orange-500"></i>
+                        </div>
+                    </header>
+
+                    <div class="bg-white rounded-[2.5rem] p-8 shadow-xl shadow-orange-100/50 border border-orange-50 mb-6 text-center">
+                        <div class="text-6xl mb-2">🍕</div>
+                        <h2 class="text-5xl font-black text-slate-800 mb-2">${data.stamps || 0}</h2>
+                        <p class="text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em]">Sellos Acumulados</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-blue-500 p-6 rounded-[2rem] text-white">
+                            <i data-lucide="gift" class="mb-2"></i>
+                            <p class="text-[10px] font-bold opacity-80 uppercase">Bienvenida</p>
+                            <p class="font-black">${data.cupon_bienvenida || 'OK'}</p>
+                        </div>
+                        <div class="bg-slate-800 p-6 rounded-[2rem] text-white text-center" onclick="location.reload()">
+                            <i data-lucide="refresh-cw" class="mx-auto mb-2 w-4 h-4"></i>
+                            <p class="text-[10px] font-bold opacity-80 uppercase text-center">Actualizar</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>
