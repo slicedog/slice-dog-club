@@ -15,7 +15,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, query, onSnapshot, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, query, where, onSnapshot, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAFwDQVPy4xRjw4rxcKcZEwNx1suV7eWW8",
@@ -29,8 +29,16 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- CARGAR MÉTRICAS Y TABLA DE USUARIOS ---
-        onSnapshot(collection(db, "users"), (snapshot) => {
+        // --- IDENTIDAD SAAS ---
+        const COMERCIO_ID = "slice-dog-001";
+
+        // --- CARGAR MÉTRICAS Y TABLA FILTRADA POR COMERCIO ---
+        const qUsuarios = query(
+            collection(db, "users"), 
+            where("comercio_id", "==", COMERCIO_ID) // <--- FILTRO MAESTRO
+        );
+
+        onSnapshot(qUsuarios, (snapshot) => {
             const users = [];
             let totalStamps = 0;
             snapshot.forEach(doc => {
@@ -39,11 +47,9 @@
                 totalStamps += (data.stamps || 0);
             });
 
-            // Actualizar Tarjetas
             document.getElementById('total-clientes').innerText = users.length;
             document.getElementById('total-sellos').innerText = totalStamps;
             
-            // Renderizar Tabla de Clientes
             const tableBody = document.getElementById('table-users-body');
             tableBody.innerHTML = '';
             users.sort((a, b) => (b.stamps || 0) - (a.stamps || 0)).forEach(user => {
@@ -63,8 +69,14 @@
             });
         });
 
-        // --- CARGAR HISTORIAL RECIENTE ---
-        const historyQuery = query(collection(db, "historial"), orderBy("fecha", "desc"), limit(10));
+        // --- CARGAR HISTORIAL RECIENTE FILTRADO ---
+        const historyQuery = query(
+            collection(db, "historial"), 
+            where("comercio_id", "==", COMERCIO_ID), // <--- FILTRO MAESTRO
+            orderBy("fecha", "desc"), 
+            limit(10)
+        );
+
         onSnapshot(historyQuery, (snapshot) => {
             const historyList = document.getElementById('history-list');
             historyList.innerHTML = '';
@@ -72,7 +84,7 @@
                 const data = doc.data();
                 const fecha = data.fecha?.toDate().toLocaleString() || 'Reciente';
                 const item = document.createElement('div');
-                item.className = "flex items-center justify-between p-4 bg-white border-l-4 ${data.tipo === 'TABLERO' ? 'border-green-500' : 'border-blue-500'} rounded-r-xl shadow-sm mb-3";
+                item.className = `flex items-center justify-between p-4 bg-white border-l-4 ${data.tipo === 'TABLERO' ? 'border-green-500' : 'border-blue-500'} rounded-r-xl shadow-sm mb-3`;
                 item.innerHTML = `
                     <div>
                         <p class="text-sm font-black text-gray-800 uppercase">${data.tipo}</p>
@@ -91,7 +103,6 @@
     </script>
 </head>
 <body class="p-4 md:p-8">
-
     <div class="max-w-7xl mx-auto">
         <header class="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
             <div>
@@ -153,8 +164,7 @@
                                 <th class="px-6 py-4 text-center">Progreso</th>
                             </tr>
                         </thead>
-                        <tbody id="table-users-body" class="text-sm">
-                            </tbody>
+                        <tbody id="table-users-body" class="text-sm"></tbody>
                     </table>
                 </div>
             </div>
@@ -164,11 +174,9 @@
                     <i data-lucide="activity" class="w-5 h-5 text-orange-500"></i>
                     Actividad en Vivo
                 </h3>
-                <div id="history-list">
-                    </div>
+                <div id="history-list"></div>
             </div>
         </div>
     </div>
-
 </body>
 </html>
