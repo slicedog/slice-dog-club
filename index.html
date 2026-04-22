@@ -52,7 +52,6 @@
             if(l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 500); }
         };
 
-        // 1. ESCUCHAR CONFIGURACIÓN
         onSnapshot(doc(db, "config", "promos"), (snapshot) => {
             if(snapshot.exists()) {
                 globalConfig = snapshot.data();
@@ -65,7 +64,6 @@
             }
         });
 
-        // 2. ESCUCHAR USUARIO (REAL-TIME)
         if (userStoredEmail) {
             onSnapshot(doc(db, "users", userStoredEmail), (snapshot) => {
                 if (snapshot.exists() && snapshot.data().comercio_id === COMERCIO_ID) {
@@ -98,11 +96,10 @@
                     btnContainer.innerHTML = `<button onclick="window.useCoupon('${data.email}', 'TABLERO', '${data.name}')" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black shadow-lg">RECLAMAR PREMIO</button>`;
                 } else {
                     statusEl.innerText = `FALTAN ${10 - currentStamps} PARA TU PREMIO`;
-                    btnContainer.innerHTML = `<button onclick="window.validarYAbrirScanner('${data.email}', ${currentStamps})" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3"><i data-lucide="qr-code"></i> Solicitar Sello</button>`;
+                    btnContainer.innerHTML = `<button onclick="window.validarYAbrirScanner('${data.email}', ${currentStamps})" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg"><i data-lucide="qr-code"></i> Solicitar Sello</button>`;
                 }
             }
 
-            // Grid de Sellos
             const grid = document.getElementById('stamps-grid'); grid.innerHTML = '';
             for(let i=0; i<10; i++) {
                 const active = i < currentStamps;
@@ -144,7 +141,7 @@
         window.validarYAbrirScanner = (email, currentStamps) => {
             const lastStamp = localStorage.getItem(`sd_last_stamp_${COMERCIO_ID}`);
             if (lastStamp && (Date.now() - parseInt(lastStamp)) / 60000 < COOLDOWN_MINUTOS) {
-                alert(`⛔ Por seguridad, espera 10 min entre sellos.`);
+                alert(`⛔ Por seguridad, espera 10 min entre cada sello.`);
                 return;
             }
             window.openScanner(email, currentStamps);
@@ -153,15 +150,27 @@
         window.openScanner = (email, currentStamps) => {
             document.getElementById('scanner-modal').classList.remove('hidden');
             let scanner = new Html5Qrcode("reader");
+            let yaSello = false; // FRENO DE MANO CONTRA DOBLE LECTURA
+
             scanner.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, async (text) => {
+                if (yaSello) return; // Si ya detectó uno en esta sesión, ignorar el resto
+
                 const b1 = Math.floor(Date.now() / BLOQUE_TIEMPO_MS);
                 if (text.trim() === btoa(b1 + "_" + SECRET_SALT) || text.trim() === btoa((b1-1) + "_" + SECRET_SALT)) {
-                    await scanner.stop();
-                    document.getElementById('scanner-modal').classList.add('hidden');
-                    await updateDoc(doc(db, "users", email), { stamps: currentStamps + 1 });
-                    localStorage.setItem(`sd_last_stamp_${COMERCIO_ID}`, Date.now());
-                } else alert("QR EXPIRADO");
-            });
+                    yaSello = true; 
+                    try {
+                        await scanner.stop();
+                        document.getElementById('scanner-modal').classList.add('hidden');
+                        
+                        await updateDoc(doc(db, "users", email), { stamps: currentStamps + 1 });
+                        localStorage.setItem(`sd_last_stamp_${COMERCIO_ID}`, Date.now());
+                        
+                        alert("✅ ¡Sello registrado!");
+                    } catch (e) { console.error(e); }
+                } else {
+                    alert("❌ QR INVÁLIDO");
+                }
+            }).catch(err => alert("Error cámara: " + err));
         };
 
         window.useCoupon = async (email, type, name) => {
@@ -178,17 +187,11 @@
                   e = document.getElementById('reg-email').value.toLowerCase().trim(),
                   w = document.getElementById('reg-whatsapp').value;
             
-            if(!e || !n || !w) return alert("Por favor completa todos los campos");
+            if(!e || !n || !w) return alert("Completa todos los campos");
             
-            // IMPORTANTE: stamps: 1 otorga el primer sello de bienvenida
             await setDoc(doc(db, "users", e), { 
-                name: n, 
-                email: e, 
-                whatsapp: w, 
-                stamps: 1, 
-                comercio_id: COMERCIO_ID, 
-                cupon_bienvenida: "LISTO", 
-                cupon_cumple: "LISTO" 
+                name: n, email: e, whatsapp: w, stamps: 1, 
+                comercio_id: COMERCIO_ID, cupon_bienvenida: "LISTO", cupon_cumple: "LISTO" 
             });
             localStorage.setItem(`sd_user_${COMERCIO_ID}`, JSON.stringify(e));
             location.reload();
@@ -206,7 +209,7 @@
     <div class="app-container">
         <header class="w-full text-center py-8">
             <h1 id="brand-name" class="italic-black text-2xl italic tracking-tighter">Cargando...</h1>
-            <button onclick="abrirReglas()" class="text-[9px] font-black text-orange-600/50 uppercase tracking-widest mt-1">Ver reglas del club</button>
+            <button onclick="abrirReglas()" class="text-[9px] font-black text-orange-600/50 uppercase tracking-widest mt-1">Reglas del club</button>
         </header>
 
         <main id="main-ui" class="w-full hidden">
@@ -229,15 +232,15 @@
             <h2 class="italic-black text-3xl mb-8">ÚNETE AL CLUB</h2>
             <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-5 mb-3 bg-neutral-100 rounded-3xl font-bold text-center outline-none">
             <input type="email" id="reg-email" placeholder="Tu Correo" class="w-full p-5 mb-3 bg-neutral-100 rounded-3xl font-bold text-center outline-none">
-            <input type="tel" id="reg-whatsapp" placeholder="Tu WhatsApp" class="w-full p-5 mb-8 bg-neutral-100 rounded-3xl font-bold text-center outline-none">
-            <button onclick="registerUser()" class="w-full py-5 bg-black text-white rounded-[2rem] italic-black text-lg shadow-lg">OBTENER MI PRIMER SELLO</button>
+            <input type="tel" id="reg-whatsapp" placeholder="WhatsApp" class="w-full p-5 mb-8 bg-neutral-100 rounded-3xl font-bold text-center outline-none">
+            <button onclick="registerUser()" class="w-full py-5 bg-black text-white rounded-[2rem] italic-black text-lg">REGISTRARME Y SUMAR SELLO</button>
         </div>
     </div>
 
     <div id="reglas-modal" class="fixed inset-0 z-[300] modal-blur flex items-center justify-center p-6 hidden">
-        <div class="glass-card w-full max-w-sm p-8 shadow-2xl">
+        <div class="glass-card w-full max-w-sm p-8">
             <h3 class="italic-black text-xl mb-4 text-center">Reglas</h3>
-            <div id="reglas-content" class="text-sm text-neutral-600 leading-relaxed max-h-[300px] overflow-y-auto mb-6"></div>
+            <div id="reglas-content" class="text-sm text-neutral-600 leading-relaxed max-h-[300px] overflow-y-auto mb-6 pr-2"></div>
             <button onclick="cerrarReglas()" class="w-full py-4 bg-black text-white rounded-2xl italic-black">ENTENDIDO</button>
         </div>
     </div>
