@@ -3,73 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Slice Dog Club | Final</title>
+    <title>Slice Dog Club | Oficial</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         :root { --sd-mustard: #eb9a1f; --sd-dark: #4a2311; --sd-bg: #f3e5d0; }
-        
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: var(--sd-bg); 
-            color: var(--sd-dark); 
-            margin: 0; padding: 0; 
-            display: flex; justify-content: center;
-        }
-
+        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); color: var(--sd-dark); margin: 0; display: flex; justify-content: center; }
         .italic-black { font-weight: 900; font-style: italic; text-transform: uppercase; }
-
-        /* Contenedor Principal Protegido */
-        .app-shell {
-            width: 100%;
-            max-width: 450px;
-            min-height: 100vh;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        /* Card Blanca Estilo App */
-        .main-card {
-            background: white;
-            border-radius: 2.5rem;
-            padding: 2rem;
-            width: 100%;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            border-bottom: 6px solid rgba(0,0,0,0.05);
-        }
-
-        .stamp-slot {
-            aspect-ratio: 1/1;
-            border-radius: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px dashed #e5e5e5;
-            background: #fafafa;
-            transition: all 0.3s ease;
-        }
-
-        .stamp-active {
-            background: linear-gradient(135deg, var(--sd-mustard) 0%, #c97e10 100%);
-            border: none;
-            color: white;
-            box-shadow: 0 4px 10px rgba(235, 154, 31, 0.3);
-        }
-
+        .app-shell { width: 100%; max-width: 450px; min-height: 100vh; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .main-card { background: white; border-radius: 2.5rem; padding: 2rem; width: 100%; shadow-lg; text-align: center; }
+        .stamp-slot { aspect-ratio: 1/1; border-radius: 1rem; display: flex; align-items: center; justify-content: center; border: 2px dashed #e5e5e5; background: #fafafa; }
+        .stamp-active { background: var(--sd-mustard); border: none; color: white; }
         #loader { position: fixed; inset: 0; background: var(--sd-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
-        .coupon-card { min-width: 260px; background: white; border: 2px dashed var(--sd-mustard); border-radius: 1.5rem; padding: 1.2rem; margin-right: 12px; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .coupon-card { min-width: 200px; background: white; border: 2px dashed var(--sd-mustard); border-radius: 1.5rem; padding: 1rem; margin-right: 12px; }
     </style>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+        // CONFIGURACIÓN DE TU FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyAFwDQVPy4xRjw4rxcKcZEwNx1suV7eWW8",
             authDomain: "slice-dog-test-firebase.firebaseapp.com",
@@ -81,131 +37,59 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const SECRET_SALT = "SD2026"; 
-        const BLOQUE_TIEMPO_MS = 180000; 
-        const COOLDOWN_TIME = 600000; 
 
-        let userStoredEmail = JSON.parse(localStorage.getItem("sd_user_email"));
-        let html5QrCode;
+        let userEmail = JSON.parse(localStorage.getItem("sd_user_email"));
 
-        // Renderizado de la App
+        // Función para renderizar (Lo que ves en pantalla)
         function renderApp(data) {
             document.getElementById('loader').classList.add('hidden');
             document.getElementById('register-modal').classList.add('hidden');
             document.getElementById('main-ui').classList.remove('hidden');
             
-            document.getElementById('user-name').innerText = `HOLA, ${data.name} 🍕`;
-            const currentStamps = data.stamps || 0;
-            document.getElementById('status-text').innerText = currentStamps >= 10 ? "¡PREMIO LISTO!" : `FALTAN ${10 - currentStamps} PARA PREMIO`;
+            document.getElementById('user-name').innerText = `HOLA, ${data.name || 'PIZZERO'} 🍕`;
+            const stamps = data.stamps || 0;
+            document.getElementById('status-text').innerText = stamps >= 10 ? "¡PREMIO LISTO!" : `FALTAN ${10 - stamps} PARA PREMIO`;
 
-            // Generar Cuadrícula
+            // Dibujar Sellos
             const grid = document.getElementById('stamps-grid');
             grid.innerHTML = '';
             for(let i=0; i<10; i++) {
-                const active = i < currentStamps;
                 const slot = document.createElement('div');
-                slot.className = `stamp-slot ${active ? 'stamp-active' : ''}`;
-                slot.innerHTML = active ? 
-                    (i === 9 ? '<i data-lucide="gift" class="w-6 h-6"></i>' : '<i data-lucide="pizza" class="w-6 h-6"></i>') : 
-                    (i === 9 ? '<i data-lucide="gift" class="text-neutral-300 w-5 h-5"></i>' : '');
+                slot.className = `stamp-slot ${i < stamps ? 'stamp-active' : ''}`;
+                slot.innerHTML = i < stamps ? '<i data-lucide="pizza"></i>' : (i === 9 ? '<i data-lucide="gift" class="text-neutral-300"></i>' : '');
                 grid.appendChild(slot);
             }
-
-            // Botón de Acción
-            const btnContainer = document.getElementById('action-container');
-            if(currentStamps >= 10) {
-                btnContainer.innerHTML = `<button onclick="useCoupon('${data.email}', 'TABLERO', '${data.name}')" class="w-full py-5 bg-orange-600 text-white rounded-3xl italic-black shadow-lg">CANJEAR PIZZA GRATIS</button>`;
-            } else {
-                btnContainer.innerHTML = `<button id="btn-scan" onclick="window.openScanner('${data.email}', ${currentStamps})" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-3xl italic-black flex items-center justify-center gap-3 shadow-lg"><i data-lucide="qr-code"></i> Solicitar Sello</button>`;
-                
-                const lastS = localStorage.getItem("sd_last_stamp_time");
-                if (lastS && (Date.now() - lastS < COOLDOWN_TIME)) {
-                    startCooldown(COOLDOWN_TIME - (Date.now() - lastS));
-                }
-            }
-
-            // Recompensas
-            const carousel = document.getElementById('rewards-carousel');
-            carousel.innerHTML = '';
-            if(data.cupon_bienvenida === "LISTO") {
-                addCouponCard(carousel, "🎁 BIENVENIDA", "Bebida GRATIS", () => useCoupon(data.email, 'cupon_bienvenida', data.name));
-            }
-            if(data.cupon_cumple === "LISTO") {
-                addCouponCard(carousel, "🎂 CUMPLE", "Rebanada GRATIS", () => useCoupon(data.email, 'cupon_cumple', data.name));
-            }
-
             lucide.createIcons();
         }
 
-        function addCouponCard(parent, title, gift, action) {
-            const card = document.createElement('div');
-            card.className = 'coupon-card text-center';
-            card.innerHTML = `<p class="text-[9px] font-black text-orange-500 mb-1">${title}</p><h4 class="italic-black text-base mb-3">${gift}</h4><button class="w-full py-2 bg-black text-white rounded-xl text-[10px] font-black">CANJEAR</button>`;
-            card.querySelector('button').onclick = () => { if(confirm('¿Generar PIN de canje?')) action(); };
-            parent.appendChild(card);
-        }
-
-        // Lógica de Registro
+        // Registro de nuevo usuario
         window.registerUser = async () => {
-            const n = document.getElementById('reg-name').value;
-            const e = document.getElementById('reg-email').value.toLowerCase().trim();
-            const w = document.getElementById('reg-whatsapp').value;
-            if(!e || !n) { alert("Nombre y Correo son obligatorios"); return; }
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value.toLowerCase().trim();
+            if(!name || !email) return alert("Completa tus datos");
 
-            const userRef = doc(db, "users", e);
-            const userSnap = await getDoc(userRef);
-
-            if (!userSnap.exists()) {
-                await setDoc(userRef, { name: n, email: e, whatsapp: w, stamps: 1, cupon_bienvenida: "LISTO", cupon_cumple: "LISTO", lastUpdate: new Date() });
-            }
-            localStorage.setItem("sd_user_email", JSON.stringify(e));
+            const userRef = doc(db, "users", email);
+            await setDoc(userRef, { name, email, stamps: 1, cupon_bienvenida: "LISTO", lastUpdate: new Date() });
+            localStorage.setItem("sd_user_email", JSON.stringify(email));
             location.reload();
         };
 
-        // Escáner
-        window.openScanner = (email, currentStamps) => {
-            document.getElementById('scanner-modal').classList.remove('hidden');
-            html5QrCode = new Html5Qrcode("reader");
-            html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, 
-                async (text) => {
-                    const b1 = Math.floor(Date.now() / BLOQUE_TIEMPO_MS);
-                    if (text.trim() === btoa(b1 + "_" + SECRET_SALT) || text.trim() === btoa((b1-1) + "_" + SECRET_SALT)) {
-                        await html5QrCode.stop();
-                        localStorage.setItem("sd_last_stamp_time", Date.now());
-                        await updateDoc(doc(db, "users", email), { stamps: currentStamps + 1 });
-                        document.getElementById('scanner-modal').classList.add('hidden');
-                    } else { alert("Código inválido o expirado"); }
-                }
-            );
-        };
-
-        window.closeScanner = async () => {
-            if(html5QrCode) await html5QrCode.stop();
-            document.getElementById('scanner-modal').classList.add('hidden');
-        };
-
-        function startCooldown(ms) {
-            const btn = document.getElementById('btn-scan');
-            if(!btn) return;
-            btn.classList.add('opacity-50', 'pointer-events-none');
-            let secs = Math.ceil(ms / 1000);
-            const inter = setInterval(() => {
-                secs--; btn.innerHTML = `<i data-lucide="clock" class="w-4 h-4"></i> ESPERA (${secs}s)`;
-                if (secs <= 0) { clearInterval(inter); location.reload(); }
-            }, 1000);
-        }
-
-        async function useCoupon(email, type, name) {
-            const pin = Math.floor(100 + Math.random() * 900);
-            const updateData = { active_pin: pin, pin_type: type, pin_timestamp: Date.now() };
-            if(type === 'TABLERO') updateData.stamps = 0; else updateData[type] = "USADO";
-            await updateDoc(doc(db, "users", email), updateData);
-            alert(`Tu PIN de canje es: ${pin}. Muéstralo en caja.`);
-        }
-
-        window.onload = () => {
-            if(userStoredEmail) {
-                onSnapshot(doc(db, "users", userStoredEmail), (doc) => { if(doc.exists()) renderApp(doc.data()); });
+        // INICIO LÓGICO
+        window.onload = async () => {
+            if(userEmail) {
+                const userRef = doc(db, "users", userEmail);
+                onSnapshot(userRef, (snapshot) => {
+                    if(snapshot.exists()) {
+                        renderApp(snapshot.data());
+                    } else {
+                        // Si el correo en el celular no existe en Firebase, borramos y pedimos registro
+                        localStorage.removeItem("sd_user_email");
+                        location.reload();
+                    }
+                }, (error) => {
+                    console.error("Error Firebase:", error);
+                    alert("Error de conexión con la base de datos.");
+                });
             } else {
                 document.getElementById('loader').classList.add('hidden');
                 document.getElementById('register-modal').classList.remove('hidden');
@@ -216,48 +100,37 @@
 <body>
 
     <div id="loader">
-        <h2 class="italic-black text-2xl animate-pulse">SLICE DOG</h2>
+        <h2 class="italic-black text-2xl animate-bounce text-orange-600">SLICE DOG</h2>
+        <p class="text-[10px] font-bold mt-4">CARGANDO TU CLUB...</p>
     </div>
 
     <div class="app-shell">
         <header class="py-8">
-            <h1 class="italic-black text-2xl">Slice Dog <span class="text-orange-600">Club</span></h1>
+            <h1 class="italic-black text-2xl">SLICE DOG <span class="text-orange-600">CLUB</span></h1>
         </header>
 
         <main id="main-ui" class="w-full hidden">
-            <div class="main-card">
-                <p id="user-name" class="text-[10px] font-black text-neutral-400 mb-2 tracking-widest"></p>
-                <h2 id="status-text" class="italic-black text-xl mb-6">CARGANDO...</h2>
+            <div class="main-card shadow-2xl">
+                <p id="user-name" class="text-[10px] font-black text-neutral-400 mb-2 tracking-widest uppercase"></p>
+                <h2 id="status-text" class="italic-black text-2xl mb-8">CARGANDO...</h2>
                 
-                <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-8">
+                <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-10">
                     </div>
 
-                <div id="action-container"></div>
-            </div>
-
-            <div class="mt-10 w-full">
-                <h3 class="text-[10px] font-black text-neutral-400 mb-4 px-2 tracking-widest">TUS RECOMPENSAS</h3>
-                <div id="rewards-carousel" class="flex overflow-x-auto pb-4 scrollbar-hide">
-                    </div>
+                <button class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-3xl italic-black shadow-lg">
+                    SOLICITAR SELLO
+                </button>
             </div>
         </main>
     </div>
 
     <div id="register-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6 hidden">
         <div class="bg-white w-full rounded-[2.5rem] p-8 text-center shadow-2xl">
-            <h2 class="italic-black text-2xl mb-2">¡Bienvenido!</h2>
-            <p class="text-[10px] text-neutral-400 mb-6 font-bold">ÚNETE Y RECIBE TU PRIMER SELLO GRATIS</p>
-            <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center outline-none">
-            <input type="email" id="reg-email" placeholder="Tu Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center outline-none">
-            <input type="tel" id="reg-whatsapp" placeholder="Tu WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center outline-none">
-            <button onclick="registerUser()" class="w-full py-5 bg-black text-white rounded-3xl italic-black">EMPEZAR</button>
-        </div>
-    </div>
-
-    <div id="scanner-modal" class="fixed inset-0 bg-black z-[200] flex flex-col items-center justify-center p-6 hidden">
-        <div class="w-full max-w-sm bg-white rounded-[2rem] p-4">
-            <div id="reader" class="overflow-hidden rounded-xl"></div>
-            <button onclick="closeScanner()" class="w-full py-4 text-xs font-black text-neutral-400 uppercase">Cancelar</button>
+            <h2 class="italic-black text-2xl mb-2">¡BIENVENIDO!</h2>
+            <p class="text-[10px] text-neutral-400 mb-6 font-bold uppercase">Regístrate para empezar a ganar</p>
+            <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center outline-none border-2 border-transparent focus:border-orange-400">
+            <input type="email" id="reg-email" placeholder="Tu Correo" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center outline-none border-2 border-transparent focus:border-orange-400">
+            <button onclick="registerUser()" class="w-full py-5 bg-black text-white rounded-3xl italic-black">UNIRME AL CLUB</button>
         </div>
     </div>
 
