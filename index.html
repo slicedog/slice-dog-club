@@ -9,12 +9,54 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         :root { --sd-mustard: #eb9a1f; --sd-bg: #f3e5d0; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); margin: 0; padding: 0; overflow-x: hidden; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         .italic-black { font-weight: 900; font-style: italic; text-transform: uppercase; }
-        #loader { position: fixed; inset: 0; background: var(--sd-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
         .stamp-active { background: linear-gradient(135deg, var(--sd-mustard) 0%, #c97e10 100%); color: white; border: none; }
-        button:active { transform: scale(0.95); opacity: 0.9; }
+        #loader { position: fixed; inset: 0; background: var(--sd-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        .hidden { display: none !important; }
     </style>
+</head>
+<body>
+
+    <div id="loader">
+        <div class="animate-bounce text-orange-600"><i data-lucide="pizza" size="48"></i></div>
+    </div>
+
+    <div class="max-w-md mx-auto p-6">
+        <header class="py-8 text-center">
+            <h1 class="italic-black text-3xl">SLICE DOG <span class="text-orange-500">CLUB</span></h1>
+        </header>
+
+        <main id="main-ui" class="hidden">
+            <div class="bg-white rounded-[2.5rem] p-8 shadow-2xl border-b-8 border-neutral-200">
+                <p id="user-greeting" class="text-[10px] font-black text-neutral-400 mb-4 uppercase text-center"></p>
+                
+                <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-8"></div>
+
+                <div id="action-zone">
+                    <button id="main-button" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black shadow-lg uppercase text-lg transition-transform active:scale-95">
+                        Solicitar Sello
+                    </button>
+                    
+                    <div id="pin-display" class="hidden w-full py-6 bg-orange-600 text-white rounded-[2rem] italic-black flex flex-col items-center shadow-lg">
+                        <span class="text-[10px] opacity-70 mb-1">CÓDIGO ACTIVO</span>
+                        <span id="pin-number" class="text-5xl tracking-widest mb-1">0000</span>
+                        <span id="pin-timer" class="text-[10px] font-bold">CARGANDO...</span>
+                    </div>
+                </div>
+            </div>
+            <p class="text-[9px] text-center mt-8 font-black text-neutral-400 uppercase tracking-widest italic">Muestra tu código al cajero</p>
+        </main>
+
+        <div id="register-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[500] flex items-center justify-center p-6 hidden">
+            <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-t-8 border-orange-500">
+                <h2 class="italic-black text-2xl mb-6">Únete al Club</h2>
+                <input type="text" id="reg-name" placeholder="Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center outline-none">
+                <input type="email" id="reg-email" placeholder="Email" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center outline-none">
+                <button id="btn-do-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black uppercase">Empezar</button>
+            </div>
+        </div>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -32,109 +74,83 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const COMERCIO_ID = 'slicedog';
-        let userEmail = null;
+        let userEmail = JSON.parse(localStorage.getItem(`sd_user_${COMERCIO_ID}`));
 
-        try { 
-            const stored = localStorage.getItem(`sd_user_${COMERCIO_ID}`);
-            if(stored) userEmail = JSON.parse(stored);
-        } catch(e) { console.error("Error localstorage"); }
-
-        // --- FUNCIÓN GLOBAL DE CLIC (ASIGNADA AL CARGAR) ---
-        window.solicitarAccion = async (tipo) => {
-            console.log("Botón presionado:", tipo);
-            if(!userEmail) return alert("Error: Usuario no identificado");
-
-            const btn = document.getElementById('btn-main-action');
-            if(btn) {
-                btn.disabled = true;
-                btn.innerText = "PROCESANDO...";
-            }
-
-            try {
-                const pin = Math.floor(1000 + Math.random() * 9000);
-                await updateDoc(doc(db, "users", userEmail), {
-                    active_pin: pin,
-                    pin_type: tipo,
-                    pin_timestamp: Date.now()
-                });
-                console.log("PIN actualizado en Firebase");
-            } catch (err) {
-                console.error(err);
-                alert("Error al conectar con la base de datos.");
-                if(btn) {
-                    btn.disabled = false;
-                    btn.innerText = "REINTENTAR";
-                }
-            }
-        };
-
-        async function verificarExpiracion(email, ts) {
-            if (Date.now() - ts > 300000) { // 5 min
-                await updateDoc(doc(db, "users", email), {
-                    active_pin: deleteField(),
-                    pin_timestamp: deleteField(),
-                    pin_type: deleteField()
-                });
-            }
-        }
-
-        function renderApp(data) {
-            // Ocultar loader
-            const l = document.getElementById('loader');
-            if(l) l.classList.add('hidden');
-            
-            document.getElementById('register-modal').classList.add('hidden');
+        // --- LÓGICA DE ACTUALIZACIÓN DE UI ---
+        function updateUI(data) {
+            document.getElementById('loader').classList.add('hidden');
             document.getElementById('main-ui').classList.remove('hidden');
             document.getElementById('user-greeting').innerText = `HOLA, ${data.name || 'PIZZERO'} 🍕`;
-            
-            const currentStamps = data.stamps || 0;
-            const grid = document.getElementById('stamps-grid'); 
+
+            // Dibujar sellos
+            const grid = document.getElementById('stamps-grid');
             grid.innerHTML = '';
-            
             for(let i=0; i<10; i++) {
-                const active = i < currentStamps;
+                const active = i < (data.stamps || 0);
                 const slot = document.createElement('div');
                 slot.className = `aspect-square rounded-2xl flex items-center justify-center border-2 ${active ? 'stamp-active' : 'border-dashed border-neutral-300 bg-white/50'}`;
                 slot.innerHTML = active ? (i === 9 ? '<i data-lucide="gift"></i>' : '<i data-lucide="pizza"></i>') : (i === 9 ? '<i data-lucide="gift" class="text-neutral-300"></i>' : '');
                 grid.appendChild(slot);
             }
-
-            const btnArea = document.getElementById('btn-area');
-            if (data.active_pin) {
-                const rem = Math.ceil((300000 - (Date.now() - data.pin_timestamp)) / 1000);
-                if(rem <= 0) { verificarExpiracion(userEmail, data.pin_timestamp); return; }
-
-                btnArea.innerHTML = `
-                    <div class="w-full py-6 bg-orange-600 text-white rounded-[2rem] italic-black flex flex-col items-center shadow-lg">
-                        <span class="text-[10px] opacity-70 mb-1">CÓDIGO ACTIVO</span>
-                        <span class="text-5xl tracking-widest mb-1">${data.active_pin}</span>
-                        <span class="text-[10px] font-bold">EXPIRA EN ${rem}s</span>
-                    </div>`;
-            } else {
-                if (currentStamps >= 10) {
-                    btnArea.innerHTML = `<button id="btn-main-action" onclick="window.solicitarAccion('TABLERO')" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black shadow-lg uppercase text-lg">Canjear Pizza Gratis</button>`;
-                } else {
-                    btnArea.innerHTML = `<button id="btn-main-action" onclick="window.solicitarAccion('SELLO')" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black shadow-lg uppercase text-lg">Solicitar Sello</button>`;
-                }
-            }
             lucide.createIcons();
+
+            const btn = document.getElementById('main-button');
+            const pinBox = document.getElementById('pin-display');
+
+            if (data.active_pin) {
+                btn.classList.add('hidden');
+                pinBox.classList.remove('hidden');
+                document.getElementById('pin-number').innerText = data.active_pin;
+                
+                const timeLeft = Math.ceil((300000 - (Date.now() - data.pin_timestamp)) / 1000);
+                if (timeLeft <= 0) {
+                    updateDoc(doc(db, "users", userEmail), { active_pin: deleteField(), pin_timestamp: deleteField() });
+                } else {
+                    document.getElementById('pin-timer').innerText = `EXPIRA EN ${timeLeft}s`;
+                }
+            } else {
+                pinBox.classList.add('hidden');
+                btn.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerText = (data.stamps >= 10) ? "CANJEAR PIZZA GRATIS" : "SOLICITAR SELLO";
+                if(data.stamps >= 10) btn.classList.replace('bg-[var(--sd-mustard)]', 'bg-orange-600');
+            }
         }
 
-        // Inicio de la App
-        if(userEmail) {
+        // --- EL BOTÓN AHORA TIENE EL EVENTO AQUÍ ADENTRO ---
+        document.getElementById('main-button').addEventListener('click', async () => {
+            const btn = document.getElementById('main-button');
+            btn.disabled = true;
+            btn.innerText = "GENERANDO...";
+
+            try {
+                const pin = Math.floor(1000 + Math.random() * 9000);
+                const type = (btn.innerText.includes("PIZZA")) ? "TABLERO" : "SELLO";
+                await updateDoc(doc(db, "users", userEmail), {
+                    active_pin: pin,
+                    pin_timestamp: Date.now(),
+                    pin_type: type
+                });
+            } catch (e) {
+                alert("Error de conexión");
+                btn.disabled = false;
+            }
+        });
+
+        // --- INICIO ---
+        if (userEmail) {
             onSnapshot(doc(db, "users", userEmail), (snap) => {
-                if(snap.exists()) renderApp(snap.data());
+                if (snap.exists()) updateUI(snap.data());
             });
         } else {
-            const l = document.getElementById('loader');
-            if(l) l.classList.add('hidden');
+            document.getElementById('loader').classList.add('hidden');
             document.getElementById('register-modal').classList.remove('hidden');
         }
 
         // Registro
-        window.registrarUsuario = async () => {
+        document.getElementById('btn-do-register').onclick = async () => {
             const n = document.getElementById('reg-name').value, e = document.getElementById('reg-email').value.toLowerCase().trim();
-            if(!e || !n) return alert("Llena los datos");
+            if(!n || !e) return alert("Faltan datos");
             await setDoc(doc(db, "users", e), { name: n, email: e, stamps: 1, lastUpdate: new Date() });
             localStorage.setItem(`sd_user_${COMERCIO_ID}`, JSON.stringify(e));
             location.reload();
@@ -142,35 +158,5 @@
 
         lucide.createIcons();
     </script>
-</head>
-<body>
-    <div id="loader">
-        <div class="animate-bounce text-orange-600"><i data-lucide="pizza" size="48"></i></div>
-        <h2 class="italic-black text-xl mt-4">Cargando...</h2>
-    </div>
-
-    <div class="max-w-md mx-auto p-6 min-h-screen">
-        <header class="py-8 text-center">
-            <h1 class="italic-black text-3xl text-neutral-800">SLICE DOG <span class="text-orange-500">CLUB</span></h1>
-        </header>
-
-        <main id="main-ui" class="w-full hidden">
-            <div class="bg-white rounded-[2.5rem] p-8 shadow-2xl border-b-8 border-neutral-200">
-                <p id="user-greeting" class="text-[10px] font-black text-neutral-400 mb-4 uppercase text-center tracking-widest"></p>
-                <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-8"></div>
-                <div id="btn-area"></div>
-            </div>
-            <p class="text-[9px] text-center mt-8 font-black text-neutral-400 uppercase tracking-[0.2em]">Muestra tu código al cajero para validar</p>
-        </main>
-    </div>
-
-    <div id="register-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[999] flex items-center justify-center p-6 hidden">
-        <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-t-8 border-orange-500">
-            <h2 class="italic-black text-2xl mb-6">Únete al Club</h2>
-            <input type="text" id="reg-name" placeholder="Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center outline-none border-2 border-transparent focus:border-orange-500">
-            <input type="email" id="reg-email" placeholder="Email" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center outline-none border-2 border-transparent focus:border-orange-500">
-            <button onclick="window.registrarUsuario()" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black uppercase">Empezar ahora</button>
-        </div>
-    </div>
 </body>
 </html>
