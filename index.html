@@ -52,20 +52,29 @@
             return false;
         }
 
-        // --- FUNCIÓN DEL BOTÓN REPARADA ---
-        window.generarNuevoPin = async (email, type) => {
+        // --- FUNCIÓN DE GENERACIÓN ROBUSTA ---
+        window.generarNuevoPin = async (type) => {
+            const btn = document.getElementById('action-btn');
+            if(btn) {
+                btn.disabled = true;
+                btn.innerHTML = 'GENERANDO...'; // Confirmación visual del clic
+                btn.classList.add('opacity-80', 'scale-95');
+            }
+            
             try {
-                // Genera el código
                 const pin = Math.floor(1000 + Math.random() * 9000);
-                // Lo sube a Firebase
-                await updateDoc(doc(db, "users", email), {
+                await updateDoc(doc(db, "users", userEmail), {
                     active_pin: pin,
                     pin_type: type,
                     pin_timestamp: Date.now()
                 });
             } catch (error) {
-                console.error(error);
+                console.error("Error Firebase:", error);
                 alert("Hubo un error de conexión. Intenta nuevamente.");
+                if(btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = 'REINTENTAR';
+                }
             }
         };
 
@@ -112,10 +121,15 @@
                 }
             } else {
                 if(timerRef) clearInterval(timerRef);
+                
+                // --- INYECCIÓN DEL BOTÓN REPARADA CON EVENT LISTENER SEGURO ---
                 if (currentStamps >= 10) {
-                    btnContainer.innerHTML = `<button onclick="window.generarNuevoPin('${data.email}', 'TABLERO')" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black shadow-lg animate-bounce uppercase transition-transform active:scale-95">Canjear Premio Gratis</button>`;
+                    btnContainer.innerHTML = `<button id="action-btn" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black shadow-lg animate-bounce uppercase transition-all active:scale-95">Canjear Premio Gratis</button>`;
+                    document.getElementById('action-btn').addEventListener('click', () => window.generarNuevoPin('TABLERO'));
                 } else {
-                    btnContainer.innerHTML = `<button onclick="window.generarNuevoPin('${data.email}', 'SELLO')" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg uppercase transition-transform active:scale-95"><i data-lucide="hash"></i> Solicitar Sello</button>`;
+                    // Nota: pointer-events-none en el icono evita que el SVG bloquee el clic
+                    btnContainer.innerHTML = `<button id="action-btn" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg uppercase transition-all active:scale-95"><i data-lucide="hash" class="pointer-events-none"></i> Solicitar Sello</button>`;
+                    document.getElementById('action-btn').addEventListener('click', () => window.generarNuevoPin('SELLO'));
                 }
             }
             lucide.createIcons();
@@ -153,7 +167,7 @@
                 
                 <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-8"></div>
 
-                <div id="action-btn-container" class="w-full"></div>
+                <div id="action-btn-container" class="w-full relative z-10"></div>
             </div>
             
             <p class="text-[10px] text-center mt-8 font-bold text-neutral-400 uppercase tracking-widest">Presenta tu código en caja para sumar sellos</p>
