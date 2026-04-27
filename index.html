@@ -3,18 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title id="page-title">Slice Dog Club</title>
+    <title>Slice Dog Club</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        :root { --sd-mustard: #eb9a1f; --sd-dark: #4a2311; --sd-bg: #f3e5d0; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); color: var(--sd-dark); margin: 0; padding: 0; width: 100%; overflow-x: hidden; }
+        :root { --sd-mustard: #eb9a1f; --sd-bg: #f3e5d0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); margin: 0; padding: 0; overflow-x: hidden; -webkit-tap-highlight-color: transparent; }
         .italic-black { font-weight: 900; font-style: italic; text-transform: uppercase; }
-        #loader { position: fixed; inset: 0; background: var(--sd-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; transition: opacity 0.5s; }
+        #loader { position: fixed; inset: 0; background: var(--sd-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
         .stamp-active { background: linear-gradient(135deg, var(--sd-mustard) 0%, #c97e10 100%); color: white; border: none; }
-        @keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-        .animate-pulse-soft { animation: pulse-soft 2s infinite; }
+        button:active { transform: scale(0.95); opacity: 0.9; }
     </style>
 
     <script type="module">
@@ -34,60 +33,63 @@
         const db = getFirestore(app);
         const COMERCIO_ID = 'slicedog';
         let userEmail = null;
-        try { userEmail = JSON.parse(localStorage.getItem(`sd_user_${COMERCIO_ID}`)); } catch(e) {}
-        let timerRef = null;
 
-        lucide.createIcons();
+        try { 
+            const stored = localStorage.getItem(`sd_user_${COMERCIO_ID}`);
+            if(stored) userEmail = JSON.parse(stored);
+        } catch(e) { console.error("Error localstorage"); }
 
-        async function cleanExpiredPin(email, timestamp) {
-            const expTime = 5 * 60 * 1000; 
-            if (Date.now() - timestamp > expTime) {
+        // --- FUNCIÓN GLOBAL DE CLIC (ASIGNADA AL CARGAR) ---
+        window.solicitarAccion = async (tipo) => {
+            console.log("Botón presionado:", tipo);
+            if(!userEmail) return alert("Error: Usuario no identificado");
+
+            const btn = document.getElementById('btn-main-action');
+            if(btn) {
+                btn.disabled = true;
+                btn.innerText = "PROCESANDO...";
+            }
+
+            try {
+                const pin = Math.floor(1000 + Math.random() * 9000);
+                await updateDoc(doc(db, "users", userEmail), {
+                    active_pin: pin,
+                    pin_type: tipo,
+                    pin_timestamp: Date.now()
+                });
+                console.log("PIN actualizado en Firebase");
+            } catch (err) {
+                console.error(err);
+                alert("Error al conectar con la base de datos.");
+                if(btn) {
+                    btn.disabled = false;
+                    btn.innerText = "REINTENTAR";
+                }
+            }
+        };
+
+        async function verificarExpiracion(email, ts) {
+            if (Date.now() - ts > 300000) { // 5 min
                 await updateDoc(doc(db, "users", email), {
                     active_pin: deleteField(),
                     pin_timestamp: deleteField(),
                     pin_type: deleteField()
                 });
-                return true;
             }
-            return false;
         }
 
-        // --- FUNCIÓN DE GENERACIÓN ROBUSTA ---
-        window.generarNuevoPin = async (type) => {
-            const btn = document.getElementById('action-btn');
-            if(btn) {
-                btn.disabled = true;
-                btn.innerHTML = 'GENERANDO...'; // Confirmación visual del clic
-                btn.classList.add('opacity-80', 'scale-95');
-            }
-            
-            try {
-                const pin = Math.floor(1000 + Math.random() * 9000);
-                await updateDoc(doc(db, "users", userEmail), {
-                    active_pin: pin,
-                    pin_type: type,
-                    pin_timestamp: Date.now()
-                });
-            } catch (error) {
-                console.error("Error Firebase:", error);
-                alert("Hubo un error de conexión. Intenta nuevamente.");
-                if(btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = 'REINTENTAR';
-                }
-            }
-        };
-
         function renderApp(data) {
-            document.getElementById('loader').style.opacity = '0';
-            setTimeout(() => document.getElementById('loader').classList.add('hidden'), 500);
+            // Ocultar loader
+            const l = document.getElementById('loader');
+            if(l) l.classList.add('hidden');
             
             document.getElementById('register-modal').classList.add('hidden');
             document.getElementById('main-ui').classList.remove('hidden');
             document.getElementById('user-greeting').innerText = `HOLA, ${data.name || 'PIZZERO'} 🍕`;
             
             const currentStamps = data.stamps || 0;
-            const grid = document.getElementById('stamps-grid'); grid.innerHTML = '';
+            const grid = document.getElementById('stamps-grid'); 
+            grid.innerHTML = '';
             
             for(let i=0; i<10; i++) {
                 const active = i < currentStamps;
@@ -97,89 +99,77 @@
                 grid.appendChild(slot);
             }
 
-            const btnContainer = document.getElementById('action-btn-container');
+            const btnArea = document.getElementById('btn-area');
             if (data.active_pin) {
-                const pinTime = data.pin_timestamp || 0;
-                const remaining = Math.ceil(((5 * 60 * 1000) - (Date.now() - pinTime)) / 1000);
+                const rem = Math.ceil((300000 - (Date.now() - data.pin_timestamp)) / 1000);
+                if(rem <= 0) { verificarExpiracion(userEmail, data.pin_timestamp); return; }
 
-                if (remaining <= 0) {
-                    cleanExpiredPin(data.email, pinTime);
-                } else {
-                    btnContainer.innerHTML = `
-                        <div class="w-full py-6 bg-orange-600 text-white rounded-[2rem] italic-black flex flex-col items-center shadow-lg animate-pulse-soft">
-                            <span class="text-xs opacity-70 mb-1">CÓDIGO DE VALIDACIÓN</span>
-                            <span class="text-5xl tracking-widest mb-1">${data.active_pin}</span>
-                            <span id="timer-text" class="text-[10px] font-bold uppercase">Expira en ${remaining}s</span>
-                        </div>`;
-                    
-                    if(timerRef) clearInterval(timerRef);
-                    timerRef = setInterval(() => {
-                        const nowRem = Math.ceil(((5 * 60 * 1000) - (Date.now() - pinTime)) / 1000);
-                        if(nowRem <= 0) { clearInterval(timerRef); cleanExpiredPin(data.email, pinTime); }
-                        else { document.getElementById('timer-text').innerText = `Expira en ${nowRem}s`; }
-                    }, 1000);
-                }
+                btnArea.innerHTML = `
+                    <div class="w-full py-6 bg-orange-600 text-white rounded-[2rem] italic-black flex flex-col items-center shadow-lg">
+                        <span class="text-[10px] opacity-70 mb-1">CÓDIGO ACTIVO</span>
+                        <span class="text-5xl tracking-widest mb-1">${data.active_pin}</span>
+                        <span class="text-[10px] font-bold">EXPIRA EN ${rem}s</span>
+                    </div>`;
             } else {
-                if(timerRef) clearInterval(timerRef);
-                
-                // --- INYECCIÓN DEL BOTÓN REPARADA CON EVENT LISTENER SEGURO ---
                 if (currentStamps >= 10) {
-                    btnContainer.innerHTML = `<button id="action-btn" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black shadow-lg animate-bounce uppercase transition-all active:scale-95">Canjear Premio Gratis</button>`;
-                    document.getElementById('action-btn').addEventListener('click', () => window.generarNuevoPin('TABLERO'));
+                    btnArea.innerHTML = `<button id="btn-main-action" onclick="window.solicitarAccion('TABLERO')" class="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] italic-black shadow-lg uppercase text-lg">Canjear Pizza Gratis</button>`;
                 } else {
-                    // Nota: pointer-events-none en el icono evita que el SVG bloquee el clic
-                    btnContainer.innerHTML = `<button id="action-btn" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg uppercase transition-all active:scale-95"><i data-lucide="hash" class="pointer-events-none"></i> Solicitar Sello</button>`;
-                    document.getElementById('action-btn').addEventListener('click', () => window.generarNuevoPin('SELLO'));
+                    btnArea.innerHTML = `<button id="btn-main-action" onclick="window.solicitarAccion('SELLO')" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black shadow-lg uppercase text-lg">Solicitar Sello</button>`;
                 }
             }
             lucide.createIcons();
         }
 
+        // Inicio de la App
         if(userEmail) {
             onSnapshot(doc(db, "users", userEmail), (snap) => {
-                if(snap.exists()) renderApp({...snap.data(), email: userEmail});
+                if(snap.exists()) renderApp(snap.data());
             });
         } else {
-            document.getElementById('loader').classList.add('hidden');
+            const l = document.getElementById('loader');
+            if(l) l.classList.add('hidden');
             document.getElementById('register-modal').classList.remove('hidden');
         }
 
-        document.getElementById('btn-register').onclick = async () => {
+        // Registro
+        window.registrarUsuario = async () => {
             const n = document.getElementById('reg-name').value, e = document.getElementById('reg-email').value.toLowerCase().trim();
-            if(!e || !n) return alert("Completa los campos");
-            await setDoc(doc(db, "users", e), { name: n, email: e, stamps: 1, lastUpdate: new Date(), comercio_id: COMERCIO_ID });
+            if(!e || !n) return alert("Llena los datos");
+            await setDoc(doc(db, "users", e), { name: n, email: e, stamps: 1, lastUpdate: new Date() });
             localStorage.setItem(`sd_user_${COMERCIO_ID}`, JSON.stringify(e));
             location.reload();
         };
+
+        lucide.createIcons();
     </script>
 </head>
 <body>
-    <div id="loader"><div class="relative text-orange-600 animate-bounce"><i data-lucide="pizza" size="48"></i></div><h2 class="italic-black text-2xl mt-4">SLICE DOG</h2></div>
+    <div id="loader">
+        <div class="animate-bounce text-orange-600"><i data-lucide="pizza" size="48"></i></div>
+        <h2 class="italic-black text-xl mt-4">Cargando...</h2>
+    </div>
 
-    <div class="max-w-md mx-auto p-6 min-h-screen flex flex-col items-center">
-        <header class="py-10 text-center">
+    <div class="max-w-md mx-auto p-6 min-h-screen">
+        <header class="py-8 text-center">
             <h1 class="italic-black text-3xl text-neutral-800">SLICE DOG <span class="text-orange-500">CLUB</span></h1>
         </header>
 
         <main id="main-ui" class="w-full hidden">
-            <div class="bg-white rounded-[2.5rem] p-8 shadow-xl border-b-8 border-neutral-200">
-                <p id="user-greeting" class="text-[10px] font-black text-neutral-400 mb-4 uppercase text-center"></p>
-                
+            <div class="bg-white rounded-[2.5rem] p-8 shadow-2xl border-b-8 border-neutral-200">
+                <p id="user-greeting" class="text-[10px] font-black text-neutral-400 mb-4 uppercase text-center tracking-widest"></p>
                 <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-8"></div>
-
-                <div id="action-btn-container" class="w-full relative z-10"></div>
+                <div id="btn-area"></div>
             </div>
-            
-            <p class="text-[10px] text-center mt-8 font-bold text-neutral-400 uppercase tracking-widest">Presenta tu código en caja para sumar sellos</p>
+            <p class="text-[9px] text-center mt-8 font-black text-neutral-400 uppercase tracking-[0.2em]">Muestra tu código al cajero para validar</p>
         </main>
     </div>
 
-    <div id="register-modal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-6 hidden">
+    <div id="register-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[999] flex items-center justify-center p-6 hidden">
         <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-t-8 border-orange-500">
-            <h2 class="italic-black text-2xl mb-6">Crea tu cuenta</h2>
-            <input type="text" id="reg-name" placeholder="Tu Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center outline-none focus:ring-2 focus:ring-orange-500 transition-all">
-            <input type="email" id="reg-email" placeholder="Tu Correo" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center outline-none focus:ring-2 focus:ring-orange-500 transition-all">
-            <button id="btn-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black uppercase transition-transform active:scale-95">Unirme ahora</button>
+            <h2 class="italic-black text-2xl mb-6">Únete al Club</h2>
+            <input type="text" id="reg-name" placeholder="Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center outline-none border-2 border-transparent focus:border-orange-500">
+            <input type="email" id="reg-email" placeholder="Email" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center outline-none border-2 border-transparent focus:border-orange-500">
+            <button onclick="window.registrarUsuario()" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black uppercase">Empezar ahora</button>
         </div>
     </div>
 </body>
