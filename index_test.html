@@ -2,281 +2,161 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TEST V1.4 | Slice Dog Club</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Slice Dog Club</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        :root { --sd-mustard: #e9a124; --sd-dark: #4a2311; --sd-bg: #f3e5d0; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); color: var(--sd-dark); margin: 0; }
+        :root { --sd-mustard: #eb9a1f; --sd-bg: #f3e5d0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--sd-bg); margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         .italic-black { font-weight: 900; font-style: italic; text-transform: uppercase; }
-        .stamp-active { background: linear-gradient(135deg, var(--sd-mustard) 0%, #d48a1a 100%); color: white; border: none; }
-        .coupon-card { min-width: 260px; background: white; border: 2px dashed var(--sd-mustard); border-radius: 1.5rem; padding: 1.5rem; position: relative; snap-align: center; }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        #reader { width: 100% !important; border: none !important; border-radius: 2rem; overflow: hidden; }
-        
-        /* Estado de carga para el botón */
-        .btn-loading { pointer-events: none; opacity: 0.6; grayscale: 1; }
+        .stamp-active { background: linear-gradient(135deg, var(--sd-mustard) 0%, #c97e10 100%); color: white; border: none; }
+        #loader { position: fixed; inset: 0; background: var(--sd-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        .hidden { display: none !important; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center p-4">
+<body>
 
-    <header class="w-full max-w-md text-center py-6">
-        <h1 class="italic-black text-2xl">Slice Dog <span class="text-orange-600">Club</span> [TEST]</h1>
-    </header>
+    <div id="loader">
+        <div class="animate-bounce text-orange-600"><i data-lucide="pizza" size="48"></i></div>
+    </div>
 
-    <main id="main-ui" class="w-full max-w-md hidden">
-        <div class="bg-white rounded-[2.5rem] p-8 text-center shadow-xl mb-6">
-            <p id="user-greeting" class="text-[10px] font-black uppercase text-neutral-400 mb-1"></p>
-            <h2 id="status-title" class="italic-black text-2xl mb-8 leading-none"></h2>
-            <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-10"></div>
-            
-            <div id="main-action-container">
+    <div class="max-w-md mx-auto p-6">
+        <header class="py-8 text-center">
+            <h1 class="italic-black text-3xl">SLICE DOG <span class="text-orange-500">CLUB</span></h1>
+        </header>
+
+        <main id="main-ui" class="hidden">
+            <div class="bg-white rounded-[2.5rem] p-8 shadow-2xl border-b-8 border-neutral-200">
+                <p id="user-greeting" class="text-[10px] font-black text-neutral-400 mb-4 uppercase text-center"></p>
+                
+                <div id="stamps-grid" class="grid grid-cols-5 gap-3 mb-8"></div>
+
+                <div id="action-zone">
+                    <button id="main-button" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black shadow-lg uppercase text-lg transition-transform active:scale-95">
+                        Solicitar Sello
+                    </button>
+                    
+                    <div id="pin-display" class="hidden w-full py-6 bg-orange-600 text-white rounded-[2rem] italic-black flex flex-col items-center shadow-lg">
+                        <span class="text-[10px] opacity-70 mb-1">CÓDIGO ACTIVO</span>
+                        <span id="pin-number" class="text-5xl tracking-widest mb-1">0000</span>
+                        <span id="pin-timer" class="text-[10px] font-bold">CARGANDO...</span>
+                    </div>
                 </div>
-        </div>
-
-        <div id="section-rewards" class="hidden w-full overflow-hidden mb-8">
-            <h3 class="text-[10px] font-black uppercase text-neutral-400 mb-3 px-2">Mis Regalos Disponibles</h3>
-            <div id="rewards-carousel" class="flex gap-4 overflow-x-auto pb-6 px-2 snap-x scrollbar-hide"></div>
-        </div>
-
-        <section class="w-full px-2 mb-10">
-            <div class="bg-white/50 rounded-2xl p-6 border border-white">
-                <h4 class="text-[10px] font-black mb-4 uppercase text-neutral-500 flex items-center gap-2">
-                    <i data-lucide="info" class="w-3"></i> Reglas del Club
-                </h4>
-                <ul class="text-[11px] space-y-3 text-neutral-600 font-medium">
-                    <li class="flex gap-2"><span>•</span> 1 sello por cada compra mínima de $100.</li>
-                    <li class="flex gap-2"><span>•</span> Al completar 10 sellos, tu siguiente pizza es gratis.</li>
-                    <li class="flex gap-2"><span>•</span> Los cupones de bienvenida expiran en 30 días.</li>
-                    <li class="flex gap-2"><span>•</span> No acumulable con otras promociones.</li>
-                </ul>
             </div>
-        </section>
-    </main>
+            <p class="text-[9px] text-center mt-8 font-black text-neutral-400 uppercase tracking-widest italic">Muestra tu código al cajero</p>
+        </main>
 
-    <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-[200] flex flex-col items-center justify-center p-6 hidden">
-        <div class="w-full max-w-sm bg-white rounded-[3rem] p-4 relative">
-            <div id="reader"></div>
-            <button onclick="closeScanner()" class="mt-4 w-full py-3 text-xs font-bold uppercase text-black">Cancelar</button>
+        <div id="register-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[500] flex items-center justify-center p-6 hidden">
+            <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-t-8 border-orange-500">
+                <h2 class="italic-black text-2xl mb-6">Únete al Club</h2>
+                <input type="text" id="reg-name" placeholder="Nombre" class="w-full p-4 mb-3 bg-neutral-100 rounded-2xl font-bold text-center outline-none">
+                <input type="email" id="reg-email" placeholder="Email" class="w-full p-4 mb-6 bg-neutral-100 rounded-2xl font-bold text-center outline-none">
+                <button id="btn-do-register" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black uppercase">Empezar</button>
+            </div>
         </div>
     </div>
 
-    <div id="register-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 hidden">
-        <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 text-center border-4 border-[var(--sd-mustard)] shadow-2xl">
-            <h2 class="italic-black text-2xl mb-6">Bienvenido al <br><span class="text-orange-600">Slice Dog Club</span></h2>
-            <input type="text" id="reg-name" placeholder="¿Cómo te llamas?" class="w-full p-4 mb-3 bg-neutral-100 rounded-xl font-bold text-center outline-none">
-            <input type="email" id="reg-email" placeholder="Tu Correo" class="w-full p-4 mb-3 bg-neutral-100 rounded-xl font-bold text-center outline-none">
-            <input type="tel" id="reg-whatsapp" placeholder="Tu WhatsApp" class="w-full p-4 mb-6 bg-neutral-100 rounded-xl font-bold text-center outline-none">
-            <button id="btn-register" onclick="registerUser()" class="w-full py-5 bg-black text-white rounded-[1.8rem] italic-black">¡Unirme Ahora!</button>
-        </div>
-    </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, updateDoc, onSnapshot, deleteField } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    <script>
-        const CONFIG = {
-            storageKey: "sd_club_test_v1.4", // Nueva clave para limpiar errores
-            scriptURL: "https://script.google.com/macros/s/AKfycbxBt1k6YfvWM45N8GYfalckex_iG4gGIr9sarAN3vzJ5RY6ismgGIut8fGEMOXu374P/exec"
+        const firebaseConfig = {
+            apiKey: "AIzaSyAFwDQVPy4xRjw4rxcKcZEwNx1suV7eWW8",
+            authDomain: "slice-dog-test-firebase.firebaseapp.com",
+            projectId: "slice-dog-test-firebase",
+            storageBucket: "slice-dog-test-firebase.firebasestorage.app",
+            messagingSenderId: "1024055139023",
+            appId: "1:1024055139023:web:42985e24651b5a5f38f5ba"
         };
 
-        let user = JSON.parse(localStorage.getItem(CONFIG.storageKey));
-        let html5QrCode;
-        let isProcessing = false; // LLAVE DE SEGURIDAD PARA EL PUNTO 3
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const COMERCIO_ID = 'slicedog';
+        let userEmail = JSON.parse(localStorage.getItem(`sd_user_${COMERCIO_ID}`));
 
-        async function syncWithServer() {
-            if(!user || isProcessing) return;
-            try {
-                const res = await fetch(`${CONFIG.scriptURL}?checkEmail=${encodeURIComponent(user.email)}`);
-                const data = await res.json();
-                if (!data.exists) { localStorage.removeItem(CONFIG.storageKey); location.reload(); return; }
-                user = { ...user, ...data };
-                localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
-                renderApp();
-            } catch(e) { console.log("Sync..."); }
-        }
-
-        function renderApp() {
+        // --- LÓGICA DE ACTUALIZACIÓN DE UI ---
+        function updateUI(data) {
+            document.getElementById('loader').classList.add('hidden');
             document.getElementById('main-ui').classList.remove('hidden');
-            document.getElementById('user-greeting').innerText = `HOLA, ${user.name} 🍕`;
-            
-            const currentStamps = Math.min(user.stamps || 0, 10);
-            
-            // Título
-            const statusEl = document.getElementById('status-title');
-            if (currentStamps >= 10) {
-                statusEl.innerText = "¡PREMIO DESBLOQUEADO!";
-                statusEl.classList.add("text-orange-600", "animate-pulse");
-            } else {
-                statusEl.innerText = `FALTAN ${10 - currentStamps} PARA PREMIO`;
-                statusEl.classList.remove("text-orange-600", "animate-pulse");
-            }
+            document.getElementById('user-greeting').innerText = `HOLA, ${data.name || 'PIZZERO'} 🍕`;
 
-            // Grid
+            // Dibujar sellos
             const grid = document.getElementById('stamps-grid');
             grid.innerHTML = '';
-            for(let i=0; i<10; i++){
-                const active = i < currentStamps;
+            for(let i=0; i<10; i++) {
+                const active = i < (data.stamps || 0);
                 const slot = document.createElement('div');
-                slot.className = `aspect-square rounded-2xl flex items-center justify-center border-2 ${active ? 'stamp-active' : 'border-dashed border-neutral-300 bg-neutral-50/50'}`;
-                if (i === 9) {
-                    slot.innerHTML = active ? '<i data-lucide="gift"></i>' : '<i data-lucide="gift" class="text-neutral-300"></i>';
-                } else {
-                    slot.innerHTML = active ? '<i data-lucide="pizza"></i>' : '';
-                }
+                slot.className = `aspect-square rounded-2xl flex items-center justify-center border-2 ${active ? 'stamp-active' : 'border-dashed border-neutral-300 bg-white/50'}`;
+                slot.innerHTML = active ? (i === 9 ? '<i data-lucide="gift"></i>' : '<i data-lucide="pizza"></i>') : (i === 9 ? '<i data-lucide="gift" class="text-neutral-300"></i>' : '');
                 grid.appendChild(slot);
             }
-
-            // Botón de Acción Principal (Blindado contra spam)
-            const btnContainer = document.getElementById('main-action-container');
-            const isPendingBoard = user.current_pin && user.active_coupon === "TABLERO";
-
-            if (currentStamps >= 10) {
-                btnContainer.innerHTML = `
-                    <button onclick="claimBoardPrize()" class="w-full py-5 ${isPendingBoard ? 'bg-neutral-200 text-neutral-500' : 'bg-black text-white'} rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg" ${isPendingBoard ? 'disabled' : ''}>
-                        <i data-lucide="star"></i> ${isPendingBoard ? `CÓDIGO: ${user.current_pin}` : '¡CANJEAR MI PIZZA!'}
-                    </button>
-                `;
-            } else {
-                btnContainer.innerHTML = `
-                    <button id="btn-scan" onclick="openScanner()" class="w-full py-5 bg-[var(--sd-mustard)] text-white rounded-[1.8rem] italic-black flex items-center justify-center gap-3 shadow-lg ${isProcessing ? 'btn-loading' : ''}">
-                        <i data-lucide="qr-code"></i> ${isProcessing ? 'PROCESANDO...' : '¡SOLICITAR SELLO!'}
-                    </button>
-                `;
-            }
-
-            // Carrusel de Cupones
-            const carousel = document.getElementById('rewards-carousel');
-            carousel.innerHTML = '';
-            let hasRewards = false;
-            const catalog = [
-                { id: 'bienvenida', estado: user.cupon_bienvenida, titulo: '🎁 BIENVENIDA', premio: 'Bebida Gratis' },
-                { id: 'cumple', estado: user.cupon_cumple, titulo: '🎂 CUMPLEAÑOS', premio: 'Rebanada Gratis' }
-            ];
-
-            catalog.forEach(c => {
-                if (c.estado === "LISTO") {
-                    hasRewards = true;
-                    const isPending = user.current_pin && user.active_coupon === c.id;
-                    const card = document.createElement('div');
-                    card.className = 'coupon-card text-center';
-                    card.innerHTML = `
-                        <p class="text-[9px] font-bold uppercase text-orange-500 mb-1">${c.titulo}</p>
-                        <h4 class="italic-black text-lg mb-4">${c.premio}</h4>
-                        <button id="btn-${c.id}" onclick="requestPin('${c.id}')" 
-                                class="w-full py-3 ${isPending ? 'bg-neutral-100 text-neutral-400' : 'bg-black text-white'} rounded-xl text-[10px] font-black uppercase"
-                                ${isPending ? 'disabled' : ''}>
-                            ${isPending ? `PIN: ${user.current_pin}` : 'Canjear'}
-                        </button>
-                    `;
-                    carousel.appendChild(card);
-                }
-            });
-            document.getElementById('section-rewards').classList.toggle('hidden', !hasRewards);
             lucide.createIcons();
-        }
 
-        // --- LÓGICA DE ESCÁNER Y SELLOS ---
+            const btn = document.getElementById('main-button');
+            const pinBox = document.getElementById('pin-display');
 
-        function openScanner() {
-            if(isProcessing) return; // Bloqueo de seguridad nivel 1
-            document.getElementById('scanner-modal').classList.remove('hidden');
-            html5QrCode = new Html5Qrcode("reader");
-            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, 
-                async (text) => {
-                    if(text.startsWith("SD-") || text === "SLICE_DOG_STAMP") {
-                        await closeScanner(); // Cerramos cámara antes de procesar
-                        addStampToServer();
-                    } else {
-                        alert("Código inválido.");
-                    }
+            if (data.active_pin) {
+                btn.classList.add('hidden');
+                pinBox.classList.remove('hidden');
+                document.getElementById('pin-number').innerText = data.active_pin;
+                
+                const timeLeft = Math.ceil((300000 - (Date.now() - data.pin_timestamp)) / 1000);
+                if (timeLeft <= 0) {
+                    updateDoc(doc(db, "users", userEmail), { active_pin: deleteField(), pin_timestamp: deleteField() });
+                } else {
+                    document.getElementById('pin-timer').innerText = `EXPIRA EN ${timeLeft}s`;
                 }
-            ).catch(err => console.log(err));
+            } else {
+                pinBox.classList.add('hidden');
+                btn.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerText = (data.stamps >= 10) ? "CANJEAR PIZZA GRATIS" : "SOLICITAR SELLO";
+                if(data.stamps >= 10) btn.classList.replace('bg-[var(--sd-mustard)]', 'bg-orange-600');
+            }
         }
 
-        async function addStampToServer() {
-            if(isProcessing) return;
-            isProcessing = true; // Bloqueo de seguridad nivel 2
-            renderApp(); // Actualiza el botón a "PROCESANDO..."
-
-            // Actualización local para feedback rápido
-            user.stamps = (user.stamps || 0) + 1;
-            localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
-            renderApp();
+        // --- EL BOTÓN AHORA TIENE EL EVENTO AQUÍ ADENTRO ---
+        document.getElementById('main-button').addEventListener('click', async () => {
+            const btn = document.getElementById('main-button');
+            btn.disabled = true;
+            btn.innerText = "GENERANDO...";
 
             try {
-                await fetch(CONFIG.scriptURL, {
-                    method: 'POST', mode: 'no-cors',
-                    body: JSON.stringify({ accion: "NUEVO_SELLO", email: user.email })
+                const pin = Math.floor(1000 + Math.random() * 9000);
+                const type = (btn.innerText.includes("PIZZA")) ? "TABLERO" : "SELLO";
+                await updateDoc(doc(db, "users", userEmail), {
+                    active_pin: pin,
+                    pin_timestamp: Date.now(),
+                    pin_type: type
                 });
-                setTimeout(() => { 
-                    isProcessing = false; // Liberamos el botón tras 1.5 seg para asegurar el sync
-                    syncWithServer(); 
-                }, 1500);
-            } catch(e) { 
-                isProcessing = false;
-                renderApp();
+            } catch (e) {
+                alert("Error de conexión");
+                btn.disabled = false;
             }
-        }
+        });
 
-        // --- LÓGICA DE CANJES ---
-
-        async function requestPin(cuponId) {
-            const pin = Math.floor(100 + Math.random() * 900);
-            if (confirm(`¿Canjear este regalo?\nDicta el código ${pin} en caja.`)) {
-                user.current_pin = pin;
-                user.active_coupon = cuponId;
-                localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
-                renderApp();
-                await fetch(CONFIG.scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ accion: "GENERAR_PIN", email: user.email, pin: pin }) });
-            }
-        }
-
-        async function claimBoardPrize() {
-            const pin = Math.floor(100 + Math.random() * 900);
-            if (confirm(`¿Canjear tu premio de 10 sellos?\nCódigo: ${pin}`)) {
-                user.stamps = 0;
-                user.current_pin = pin;
-                user.active_coupon = "TABLERO";
-                localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
-                renderApp();
-                await fetch(CONFIG.scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ accion: "CANJEAR_TABLERO", email: user.email, pin: pin }) });
-            }
-        }
-
-        function closeScanner() {
-            if(html5QrCode) {
-                return html5QrCode.stop().then(() => {
-                    document.getElementById('scanner-modal').classList.add('hidden');
-                    html5QrCode = null;
-                });
-            }
-            document.getElementById('scanner-modal').classList.add('hidden');
-        }
-
-        async function registerUser() {
-            const name = document.getElementById('reg-name').value;
-            const email = document.getElementById('reg-email').value;
-            const wa = document.getElementById('reg-whatsapp').value;
-            if(!name || !email || !wa) return alert("Completa los datos");
-
-            document.getElementById('btn-register').innerText = "PROCESANDO...";
-            document.getElementById('btn-register').disabled = true;
-
-            await fetch(CONFIG.scriptURL, {
-                method: 'POST', mode: 'no-cors',
-                body: JSON.stringify({ nombre: name, email: email, whatsapp: wa, accion: "REGISTRO_NUEVO" })
+        // --- INICIO ---
+        if (userEmail) {
+            onSnapshot(doc(db, "users", userEmail), (snap) => {
+                if (snap.exists()) updateUI(snap.data());
             });
-            user = { name, email, whatsapp: wa, stamps: 1, cupon_bienvenida: "LISTO" };
-            localStorage.setItem(CONFIG.storageKey, JSON.stringify(user));
-            location.reload();
+        } else {
+            document.getElementById('loader').classList.add('hidden');
+            document.getElementById('register-modal').classList.remove('hidden');
         }
 
-        window.onload = () => {
-            if(!user) document.getElementById('register-modal').classList.remove('hidden');
-            else { renderApp(); syncWithServer(); }
-            lucide.createIcons();
+        // Registro
+        document.getElementById('btn-do-register').onclick = async () => {
+            const n = document.getElementById('reg-name').value, e = document.getElementById('reg-email').value.toLowerCase().trim();
+            if(!n || !e) return alert("Faltan datos");
+            await setDoc(doc(db, "users", e), { name: n, email: e, stamps: 1, lastUpdate: new Date() });
+            localStorage.setItem(`sd_user_${COMERCIO_ID}`, JSON.stringify(e));
+            location.reload();
         };
+
+        lucide.createIcons();
     </script>
 </body>
 </html>
